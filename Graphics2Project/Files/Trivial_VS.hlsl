@@ -1,15 +1,20 @@
 struct INPUT_VERTEX
 {
-	float2 coordinate : POSITION;
+	float3 coordinate : POSITION;
+	float4 color : COLOR;
+	float2 uvL : UV;
+	float4 normalL : NORMAL;
 };
 
 struct OUTPUT_VERTEX
 {
+	float4 posH : POSITION;
+	float2 uvH : UV;
 	float4 colorOut : COLOR;
 	float4 projectedCoordinate : SV_POSITION;
+	float4 normalH : NORMAL;
 };
 
-// TODO: PART 3 STEP 2a
 cbuffer THIS_IS_VRAM : register( b0 )
 {
 	float4 constantColor;
@@ -17,19 +22,36 @@ cbuffer THIS_IS_VRAM : register( b0 )
 	float2 padding;
 };
 
-OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
+cbuffer OBJECT : register(b0)
 {
-	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
-	sendToRasterizer.projectedCoordinate.w = 1;
-	
-	sendToRasterizer.projectedCoordinate.xy = fromVertexBuffer.coordinate.xy;
-		
-	// TODO : PART 4 STEP 4
-	sendToRasterizer.projectedCoordinate.xy += constantOffset;
-	
-	// TODO : PART 3 STEP 7
-	sendToRasterizer.colorOut = constantColor;
-	// END PART 3
-
-	return sendToRasterizer;
+	float4x4 WorldMatrix;
 }
+
+cbuffer SCENE : register(b1)
+{
+	float4x4 ViewMatrix;
+	float4x4 ProjectionMatrix;
+}
+
+
+
+OUTPUT_VERTEX main( INPUT_VERTEX input)
+{
+	OUTPUT_VERTEX output = (OUTPUT_VERTEX)0;
+	// ensures translation is preserved during matrix multiply
+	float4 localH = float4(input.coordinate.xyz, 1);
+	// move local space vertex from vertex buffer into world space.
+	localH = mul(localH, WorldMatrix);
+
+	output.projectedCoordinate = localH;
+	// TODO: Move into view space, then projection space
+	localH = mul(localH, ViewMatrix);
+	localH = mul(localH, ProjectionMatrix);
+
+	output.posH = localH;
+	output.uvH = input.uvL;
+	output.normalH = input.normalL;
+
+	return output;
+}
+

@@ -53,4 +53,7 @@
     <FxCompile Include="Files\Trivial_PS.hlsl" />
     <FxCompile Include="Files\Trivial_VS.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="ClassDiagram.cd" />
+  </ItemGroup>
 </Project>

@@ -5,6 +5,8 @@
 #include "Graphics2Project.h"
 
 #define MAX_LOADSTRING 100
+#define BACKBUFFER_WIDTH	500 // 729
+#define BACKBUFFER_HEIGHT	500 // 640
 
 //----------------------------------------------------------------------------------------------------------
 // Global Variables:
@@ -18,14 +20,47 @@ ID3D11DeviceContext*			m_pDeviceContext		= nullptr;
 IDXGISwapChain*					m_pSwapChain			= nullptr;
 ID3D11RenderTargetView*			m_pRenderTargetView 	= nullptr;
 ID3D11Resource*					m_pBackBuffer			= nullptr;
-ID3D11Debug*					debug					= nullptr;
+ID3D11Buffer*					m_pConstantbuffer		= nullptr;
+
+
+ID3D11VertexShader* 			m_pVertexShader			= nullptr;
+ID3D11PixelShader*				m_pPixelShader			= nullptr;
+
+//ID3D11Debug*					debug					= nullptr;
+
 D3D_DRIVER_TYPE					m_DriverType;
 D3D_FEATURE_LEVEL				m_FeatureLevel;
 D3D11_VIEWPORT					m_ViewPort;
 
+XMMATRIX						WorldMatrix;
+XMMATRIX						ViewMatrix;
+XMMATRIX						ProjectionMatrix;
 
 
+//----------------------------------------------------------------------------------------------------------
+// Structures
+//----------------------------------------------------------------------------------------------------------
 
+// Vertex Loading
+struct SIMPLE_VERTEX {
+	XMFLOAT4					points;
+	XMFLOAT4					Color;
+};
+
+
+struct ConstantBuffer
+{
+	XMMATRIX mWorld;
+	XMMATRIX mView;
+	XMMATRIX mProjection;
+};
+
+// Constant Buffer
+struct SEND_TO_VRAM {
+	XMFLOAT4					ConstantColor;
+	XMFLOAT2					ConstantOffset;
+	XMFLOAT2					Padding;
+};
 
 
 //----------------------------------------------------------------------------------------------------------
@@ -60,8 +95,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     MyRegisterClass(hInstance);
 
     // Perform application initialization:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
+    if (!InitInstance (hInstance, nCmdShow)) {
         return FALSE;
     }
 
@@ -110,7 +144,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hIcon                     = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_GRAPHICS2PROJECT));
     wcex.hCursor                   = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground             = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName              = MAKEINTRESOURCEW(IDC_GRAPHICS2PROJECT);
+    wcex.lpszMenuName              = NULL;
     wcex.lpszClassName             = szWindowClass;
     wcex.hIconSm                   = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
@@ -131,7 +165,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    hInst = hInstance; // Store instance handle in our global variable
 
    hWnd = CreateWindowW(szWindowClass, L"Graphics Project", WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, NULL, CW_USEDEFAULT, NULL, nullptr, nullptr, hInstance, nullptr);
+      CW_USEDEFAULT, NULL, BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd) {
       return FALSE;
@@ -235,10 +269,12 @@ HRESULT Initialize() {
 	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
 		NULL, D3D11_SDK_VERSION, &swapdesc, &m_pSwapChain, &m_pDevice, &m_FeatureLevel, &m_pDeviceContext);
 
+	// Initialize the SwapChain
 	m_pSwapChain->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&m_pBackBuffer));
 	m_pDevice->CreateRenderTargetView(m_pBackBuffer, NULL, &m_pRenderTargetView);
 	m_pBackBuffer->Release();
 
+	// Initialize the Viewport
 	m_ViewPort.Width = width;
 	m_ViewPort.Height = height;
 	m_ViewPort.MinDepth = 0.0f;
@@ -249,25 +285,55 @@ HRESULT Initialize() {
 
 
 
+	// Shader Decleration
+	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
+	m_pDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &m_pPixelShader);
+
+	// Initialize/Create Constant Buffer
+	D3D11_BUFFER_DESC		Constantbuffdesc;
+	ZeroMemory(&Constantbuffdesc, sizeof(D3D11_BUFFER_DESC));
+	Constantbuffdesc.Usage = D3D11_USAGE_DYNAMIC;
+	Constantbuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	Constantbuffdesc.ByteWidth = sizeof(SEND_TO_VRAM);
+	Constantbuffdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	m_pDevice->CreateBuffer(&Constantbuffdesc, nullptr, &m_pConstantbuffer);
+
+	// Initialize the world matrix
+	WorldMatrix = XMMatrixIdentity();
+
+	// Initialize the view matrix
+	XMVECTOR Eye = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
+	XMVECTOR Focus = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
+
+	// Initialize the projection matrix
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
+
 	return S_OK;
 }
 
 bool Run() {
 
-
-
-	// TODO: PART 1 STEP 7a
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
 
-	// TODO: PART 1 STEP 7b
 	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
 
-	// TODO: PART 1 STEP 7c
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
 
-
-
-
+	//// Update variables
+	//ConstantBuffer cb;
+	//cb.mWorld = XMMatrixTranspose(WorldMatrix);
+	//cb.mView = XMMatrixTranspose(ViewMatrix);
+	//cb.mProjection = XMMatrixTranspose(ProjectionMatrix);
+	//m_pDeviceContext->UpdateSubresource(m_pConstantbuffer, 0, nullptr, &cb, 0, 0);
+	//// Renders triangles
+	//m_pDeviceContext->VSSetShader(m_pVertexShader, nullptr, 0);
+	//m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pConstantbuffer);
+	//m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, 0);
+	//m_pDeviceContext->DrawIndexed(36, 0, 0);
+	
+	// Present our back buffer to our front buffer
 	m_pSwapChain->Present(0, 0);
 
 	return true;
@@ -279,4 +345,8 @@ void Shutdown() {
 	if (m_pDevice) { m_pDevice->Release(); }
 	if (m_pRenderTargetView) { m_pRenderTargetView->Release(); }
 	if (m_pDeviceContext) { m_pDeviceContext->Release(); }
+	if (m_pConstantbuffer) { m_pConstantbuffer->Release(); }
+
+	if (m_pVertexShader) { m_pVertexShader->Release(); }
+	if (m_pPixelShader) { m_pPixelShader->Release(); }
 }
