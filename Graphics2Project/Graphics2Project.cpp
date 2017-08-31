@@ -9,6 +9,7 @@
 //----------------------------------------------------------------------------------------------------------
 // Global Variables:
 //----------------------------------------------------------------------------------------------------------
+HWND							hWnd;
 HINSTANCE						hInst;                                    // current instance
 WCHAR							szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR							szWindowClass[MAX_LOADSTRING];            // the main window class name
@@ -16,7 +17,11 @@ ID3D11Device*					m_pDevice				= nullptr;
 ID3D11DeviceContext*			m_pDeviceContext		= nullptr;
 IDXGISwapChain*					m_pSwapChain			= nullptr;
 ID3D11RenderTargetView*			m_pRenderTargetView 	= nullptr;
-//ID3D11Debug*					debug					= nullptr;
+ID3D11Resource*					m_pBackBuffer			= nullptr;
+ID3D11Debug*					debug					= nullptr;
+D3D_DRIVER_TYPE					m_DriverType;
+D3D_FEATURE_LEVEL				m_FeatureLevel;
+D3D11_VIEWPORT					m_ViewPort;
 
 
 
@@ -30,9 +35,11 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+HRESULT Initialize();
+void Shutdown();
+bool Run();
 
-
-
+// Microsoft::WRL::ComPtr<var> name;
 
 
 //----------------------------------------------------------------------------------------------------------
@@ -58,19 +65,26 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         return FALSE;
     }
 
+	if (FAILED(Initialize())) {
+		Shutdown();
+		return 0;
+	}
+	
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_GRAPHICS2PROJECT));
 
-    MSG msg;
+    MSG msg; ZeroMemory(&msg, sizeof(msg));
 
     // Main message loop:
-    while (GetMessage(&msg, nullptr, 0, 0))
+    while (msg.message != WM_QUIT && Run())
     {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
+		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
     }
+	
+	Shutdown();
 
     return (int) msg.wParam;
 }
@@ -116,11 +130,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+   hWnd = CreateWindowW(szWindowClass, L"Graphics Project", WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, NULL, CW_USEDEFAULT, NULL, nullptr, nullptr, hInstance, nullptr);
 
-   if (!hWnd)
-   {
+   if (!hWnd) {
       return FALSE;
    }
 
@@ -138,7 +151,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //  WM_COMMAND  - process the application menu
 //  WM_PAINT    - Paint the main window
 //  WM_DESTROY  - post a quit message and return
-//
 //----------------------------------------------------------------------------------------------------------
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -200,4 +212,71 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+HRESULT Initialize() {
+
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	UINT width = rc.right - rc.left;
+	UINT height = rc.bottom - rc.top;
+
+	DXGI_SWAP_CHAIN_DESC swapdesc;
+	ZeroMemory(&swapdesc, sizeof(DXGI_SWAP_CHAIN_DESC));
+	swapdesc.BufferCount = 1;
+	swapdesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapdesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapdesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	swapdesc.OutputWindow = hWnd;
+	swapdesc.SampleDesc.Count = 1;
+	swapdesc.SampleDesc.Quality = 0;
+	swapdesc.Windowed = true;
+
+	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
+		NULL, D3D11_SDK_VERSION, &swapdesc, &m_pSwapChain, &m_pDevice, &m_FeatureLevel, &m_pDeviceContext);
+
+	m_pSwapChain->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&m_pBackBuffer));
+	m_pDevice->CreateRenderTargetView(m_pBackBuffer, NULL, &m_pRenderTargetView);
+	m_pBackBuffer->Release();
+
+	m_ViewPort.Width = width;
+	m_ViewPort.Height = height;
+	m_ViewPort.MinDepth = 0.0f;
+	m_ViewPort.MaxDepth = 1.0f;
+	m_ViewPort.TopLeftX = 0;
+	m_ViewPort.TopLeftY = 0;
+
+
+
+
+	return S_OK;
+}
+
+bool Run() {
+
+
+
+	// TODO: PART 1 STEP 7a
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
+
+	// TODO: PART 1 STEP 7b
+	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
+
+	// TODO: PART 1 STEP 7c
+	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
+
+
+
+
+	m_pSwapChain->Present(0, 0);
+
+	return true;
+}
+
+void Shutdown() {
+
+	if (m_pSwapChain) { m_pSwapChain->Release(); }
+	if (m_pDevice) { m_pDevice->Release(); }
+	if (m_pRenderTargetView) { m_pRenderTargetView->Release(); }
+	if (m_pDeviceContext) { m_pDeviceContext->Release(); }
 }
