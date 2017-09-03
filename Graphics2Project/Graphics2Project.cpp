@@ -7,6 +7,8 @@
 #define MAX_LOADSTRING 100
 #define BACKBUFFER_WIDTH	500 // 729
 #define BACKBUFFER_HEIGHT	500 // 640
+#define ColorCube			0
+#define TextureCube			1
 
 //----------------------------------------------------------------------------------------------------------
 // Global Variables:
@@ -25,6 +27,9 @@ ID3D11Resource*					m_pBackBuffer			= nullptr;
 ID3D11Buffer*					m_pVertexBuffer			= nullptr;
 ID3D11Buffer*					m_pIndexBuffer			= nullptr;
 ID3D11Buffer*					m_pConstantBuffer		= nullptr;
+ID3D11Texture2D*				m_pTexture2D			= nullptr;
+ID3D11DepthStencilView*			m_pDepthStencil			= nullptr;
+ID3D11SamplerState*				m_pSamplerState			= nullptr;
 
 ID3D11VertexShader* 			m_pVertexShader			= nullptr;
 ID3D11PixelShader*				m_pPixelShader			= nullptr;
@@ -38,6 +43,13 @@ D3D11_VIEWPORT					m_ViewPort;
 XMMATRIX						WorldMatrix;
 XMMATRIX						ViewMatrix;
 XMMATRIX						ProjectionMatrix;
+
+//View Martix Vectors
+XMVECTOR Eye = XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
+XMVECTOR Focus = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+XMVECTOR ResetEye = Eye;
+
 #pragma endregion
 
 
@@ -268,8 +280,8 @@ HRESULT Initialize() {
 	// Getting The Current Width and Height of the Window
 	RECT rc;
 	GetClientRect(hWnd, &rc);
-	UINT width = rc.right - rc.left;
-	UINT height = rc.bottom - rc.top;
+	UINT width = rc.right;
+	UINT height = rc.bottom;
 
 	// Describing the SwapChain
 	DXGI_SWAP_CHAIN_DESC swapdesc;
@@ -293,6 +305,38 @@ HRESULT Initialize() {
 	m_pBackBuffer->Release();
 
 	
+
+
+
+	// Create depth stencil texture
+	D3D11_TEXTURE2D_DESC texturedesc;
+	ZeroMemory(&texturedesc, sizeof(texturedesc));
+	texturedesc.Width = width;
+	texturedesc.Height = height;
+	texturedesc.MipLevels = 1;
+	texturedesc.ArraySize = 1;
+	texturedesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	texturedesc.SampleDesc.Count = 1;
+	texturedesc.SampleDesc.Quality = 0;
+	texturedesc.Usage = D3D11_USAGE_DEFAULT;
+	texturedesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	texturedesc.CPUAccessFlags = 0;
+	texturedesc.MiscFlags = 0;
+	m_pDevice->CreateTexture2D(&texturedesc, NULL, &m_pTexture2D);
+
+	// Create the depth stencil view
+	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+	ZeroMemory(&descDSV, sizeof(descDSV));
+	descDSV.Format = texturedesc.Format;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	descDSV.Texture2D.MipSlice = 0;
+	m_pDevice->CreateDepthStencilView(m_pTexture2D, &descDSV, &m_pDepthStencil);
+
+
+
+
+
+
 	// Initializing the Viewport
 	m_ViewPort.Width = static_cast<float>(width);
 	m_ViewPort.Height = static_cast<float>(height);
@@ -301,16 +345,52 @@ HRESULT Initialize() {
 	m_ViewPort.TopLeftX = 0;
 	m_ViewPort.TopLeftY = 0;
 
-	// Creating Vertex
+	// Creating Cube Vertex
 	SIMPLE_VERTEX Vertex[] = {
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		#pragma region CubeVerts
+		#if TextureCube
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		#endif // 0
+
+		#if ColorCube
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		#endif // 0
+		#pragma endregion
 	};
 
 	// Initializing Buffer
@@ -318,7 +398,7 @@ HRESULT Initialize() {
 	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
 	buffdesc.Usage = D3D11_USAGE_DEFAULT;
 	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 8;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 24;
 
 	// Initializing SubSource
 	D3D11_SUBRESOURCE_DATA data;
@@ -330,7 +410,28 @@ HRESULT Initialize() {
 
 	// Creating Index
 	DWORD32 Indexes[] = {
-		#pragma region Indexs
+		#pragma region CubeIndexs
+		#if TextureCube
+		3,1,0,
+		2,1,3,
+
+		6,4,5,
+		7,4,6,
+
+		11,9,8,
+		10,9,11,
+
+		14,12,13,
+		15,12,14,
+
+		19,17,16,
+		18,17,19,
+
+		22,20,21,
+		23,20,22
+		#endif // 0
+		
+		#if ColorCube
 		3,1,0,
 		2,1,3,
 
@@ -348,6 +449,7 @@ HRESULT Initialize() {
 
 		6,4,5,
 		7,4,6,
+		#endif // 0
 		#pragma endregion
 	};
 
@@ -358,9 +460,33 @@ HRESULT Initialize() {
 	data.pSysMem = Indexes;
 	m_pDevice->CreateBuffer(&buffdesc, &data, &m_pIndexBuffer);
 
-	// Set index buffer
+	// Seting index buffer
 	m_pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	
+
+
+
+
+
+	// Create the sample state
+	D3D11_SAMPLER_DESC sampDesc;
+	ZeroMemory(&sampDesc, sizeof(sampDesc));
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
+
+
+
+
+
+
+
+
 	// Decleraing Shaders
 	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
 	m_pDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &m_pPixelShader);
@@ -389,9 +515,6 @@ HRESULT Initialize() {
 	WorldMatrix = XMMatrixIdentity();
 
 	// Initializing the view matrix
-	XMVECTOR Eye = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
-	XMVECTOR Focus = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 
 	// Initializing the projection matrix
@@ -406,29 +529,90 @@ HRESULT Initialize() {
 //----------------------------------------------------------------------------------------------------------
 bool Run() {
 
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
-
-	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
-
+	// Time Per Frame
 	static float t = 0.0f;
 	static ULONGLONG timeStart = 0;
 	ULONGLONG timeCur = GetTickCount64();
 	if (timeStart == 0)
 		timeStart = timeCur;
 	t = (timeCur - timeStart) / 1000.0f;
+
+	// ViewMatrix/ViewPort Movement/Rotation
+	#pragma region Camera Movement
+	if (GetAsyncKeyState('R')) {
+		ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up);
+	}
+	// ViewPort/Camera Zoom In
+	if (GetAsyncKeyState('Q')) {
+		XMMATRIX lo = XMMatrixTranslation(0, 0, -0.001f);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera Zoom Out
+	if (GetAsyncKeyState('E')) {
+		XMMATRIX lo = XMMatrixTranslation(0, 0, 0.001f);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera movement Up
+	if (GetAsyncKeyState('W')) {
+		XMMATRIX lo = XMMatrixTranslation(0, -0.001f, 0);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera movement Down
+	if (GetAsyncKeyState('S')) {
+		XMMATRIX lo = XMMatrixTranslation(0, 0.001f, 0);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera movement Left
+	if (GetAsyncKeyState('A')) {
+		XMMATRIX lo = XMMatrixTranslation(-0.001f, 0, 0);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera movement Right
+	if (GetAsyncKeyState('D')) {
+		XMMATRIX lo = XMMatrixTranslation(0.001f, 0, 0);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera rotate Up
+	if (GetAsyncKeyState('I')) {
+		XMMATRIX lo = XMMatrixRotationX(0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera rotate Down
+	if (GetAsyncKeyState('K')) {
+		XMMATRIX lo = XMMatrixRotationX(-0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera rotate Left
+	if (GetAsyncKeyState('J')) {
+		XMMATRIX lo = XMMatrixRotationY(0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera rotate Right
+	if (GetAsyncKeyState('L')) {
+		XMMATRIX lo = XMMatrixRotationY(-0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	#pragma endregion
+
+
+	// Setting Target View
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
 	
-	// Rotate Cube
+	// Setting Viewport
+	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
+	
+	// Rotating Cube
 	WorldMatrix = XMMatrixRotationY(t);
 
 	// Clearing Back Buffer
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
 
 	// Update variables
-	ConstantMatrix cb;
-	cb.World = XMMatrixTranspose(WorldMatrix);
-	cb.View = XMMatrixTranspose(ViewMatrix);
-	cb.Projection = XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, 0, nullptr, &cb, 0, 0);
+	ConstantMatrix constantM;
+	constantM.World = XMMatrixTranspose(WorldMatrix);
+	constantM.View = XMMatrixTranspose(ViewMatrix);
+	constantM.Projection = XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &constantM, 0, 0);
 
 	// Renders the Triangles for the Cube
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
