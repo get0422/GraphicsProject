@@ -27,12 +27,18 @@
     <ClInclude Include="Graphics2Project.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DDSTextureLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Graphics2Project.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DDSTextureLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -48,6 +54,7 @@
     <Image Include="Graphics2Project.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="Files\greendragon.dds" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Files\Trivial_PS.hlsl" />

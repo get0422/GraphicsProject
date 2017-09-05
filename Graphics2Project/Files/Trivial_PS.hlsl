@@ -22,6 +22,7 @@ cbuffer ConstantMatrixBuffer : register(b0)
 // Pixel Shader
 float4 main(OUTPUT_VERTEX input) : SV_TARGET
 {
-	return input.colorOut;
+	//return input.colorOut;
+	return tex.Sample(samp, input.uvH);
 }
 

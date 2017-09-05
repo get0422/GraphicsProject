@@ -33,5 +33,5 @@ using namespace DirectX;
 
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
-
+#include "DDSTextureLoader.h"
 // TODO: reference additional headers your program requires here

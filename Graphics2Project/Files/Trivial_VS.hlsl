@@ -20,13 +20,6 @@ cbuffer ConstantMatrixBuffer : register(b0)
 	matrix ViewMatrix;
 	matrix ProjectionMatrix;
 }
-
-cbuffer THIS_IS_VRAM : register(b1)
-{
-	float4 constantColor;
-	float2 constantOffset;
-	float2 padding;
-};
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// Variable for the vertex input and output , gonna be the world position and your gonna get the position after you multipley the pistion of the vertex by the model matrix
 OUTPUT_VERTEX main(INPUT_VERTEX input)
 {
@@ -39,10 +32,10 @@ OUTPUT_VERTEX main(INPUT_VERTEX input)
 	localH = mul(localH, ProjectionMatrix);
 
 	output.projectedCoordinate = localH;
+	output.colorOut = input.color;
 	output.uvH = input.uvL;
 	output.normalH = input.normalL;
 
-	output.colorOut = input.color;
 	return output;
 }
 
