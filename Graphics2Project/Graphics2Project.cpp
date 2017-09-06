@@ -56,17 +56,21 @@ XMVECTOR Up						= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR ResetEye = Eye;
 
 // Need for Loading Pryamid
-Object							Pryamid;
+ObjLoader							Pryamid;
 XMMATRIX						PryamidMatrix;
 ID3D11Buffer*					PryamidVertexBuffer		= nullptr;
 ID3D11Buffer*					PryamidIndexBuffer		= nullptr;
 ID3D11Buffer*					PryamidConstantBuffer	= nullptr;
 ID3D11ShaderResourceView*		PryamidTexture			= nullptr;
 
+// Need for Loading Floor
+XMMATRIX						FloorMatrix;
+ID3D11Buffer*					FloorVertexBuffer		= nullptr;
+ID3D11Buffer*					FloorIndexBuffer		= nullptr;
+ID3D11Buffer*					FloorConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		FloorTexture2D			= nullptr;
+
 #pragma endregion
-
-
-
 
 
 //----------------------------------------------------------------------------------------------------------
@@ -82,8 +86,10 @@ void Shutdown();
 bool Run();
 void DrawCube();
 void SetCube();
-void VertexIndexConstBuffers(const char * filename, Object & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
-void DrawObject(Object & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * worldbuffer, ID3D11ShaderResourceView * texture);
+void Floor();
+void DrawFloor();
+void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
+void DrawObject(ObjLoader & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * worldbuffer, ID3D11ShaderResourceView * texture);
 
 // Microsoft::WRL::ComPtr<var> name;
 #pragma endregion
@@ -328,7 +334,222 @@ HRESULT Initialize() {
 	m_ViewPort.TopLeftX = 0;
 	m_ViewPort.TopLeftY = 0;
 
-	#pragma region CUBE RELATED STUFF
+	// Setting Indexed Geometry
+	SetCube();
+	Floor();
+	
+	// Setting Onject
+	VertexIndexConstBuffers("Files/testpyramid.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
+
+
+	// Loading Indexed Geometry Textures
+	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTextureRV);
+	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &FloorTexture2D);
+
+	// Loading Object Textures 
+	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &PryamidTexture);
+
+	// Creating the sample state
+	D3D11_SAMPLER_DESC sampDesc;
+	ZeroMemory(&sampDesc, sizeof(sampDesc));
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
+
+
+	// Decleraing Shaders
+	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
+	m_pDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &m_pPixelShader);
+
+	// Defining the Input Layout
+	D3D11_INPUT_ELEMENT_DESC layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	// Number of Elements in the Layout
+	UINT numberOfElements = ARRAYSIZE(layout);
+
+	// Creating the Input Layout
+	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
+
+	// Initializing the world matrix
+	WorldMatrix = XMMatrixIdentity();
+	PryamidMatrix = XMMatrixIdentity();
+	PryamidMatrix = XMMatrixTranslation(1, 0, 0);
+	PryamidMatrix = XMMatrixMultiply(PryamidMatrix, XMMatrixScaling(5.0f, 5.0f, 5.0f));
+	FloorMatrix = XMMatrixIdentity();
+
+	// Initializing the view matrix
+	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
+
+	// Initializing the projection matrix
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / static_cast<float>(height), 0.01f, 200.0f);
+
+
+	return S_OK;
+}
+
+
+//----------------------------------------------------------------------------------------------------------
+// Constant Frame Rendering
+//----------------------------------------------------------------------------------------------------------
+bool Run() {
+
+	// Time Per Frame
+	static float t = 0.0f;
+	static ULONGLONG timeStart = 0;
+	ULONGLONG timeCur = GetTickCount64();
+	if (timeStart == 0)
+		timeStart = timeCur;
+	t = (timeCur - timeStart) / 1000.0f;
+
+	// ViewMatrix/ViewPort Movement/Rotation
+	#pragma region Camera Movement
+	if (GetAsyncKeyState('R')) {
+		ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up);
+	}
+	// ViewPort/Camera Zoom In
+	if (GetAsyncKeyState('Q')) {
+		XMMATRIX lo = XMMatrixTranslation(0, 0, -0.001f);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera Zoom Out
+	if (GetAsyncKeyState('E')) {
+		XMMATRIX lo = XMMatrixTranslation(0, 0, 0.001f);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera movement Up
+	if (GetAsyncKeyState('W')) {
+		XMMATRIX lo = XMMatrixTranslation(0, -0.001f, 0);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera movement Down
+	if (GetAsyncKeyState('S')) {
+		XMMATRIX lo = XMMatrixTranslation(0, 0.001f, 0);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera movement Right
+	if (GetAsyncKeyState('D')) {
+		XMMATRIX lo = XMMatrixTranslation(-0.001f, 0, 0);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera movement Left
+	if (GetAsyncKeyState('A')) {
+		XMMATRIX lo = XMMatrixTranslation(0.001f, 0, 0);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera rotate Up
+	if (GetAsyncKeyState('I')) {
+		XMMATRIX lo = XMMatrixRotationX(0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera rotate Down
+	if (GetAsyncKeyState('K')) {
+		XMMATRIX lo = XMMatrixRotationX(-0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera rotate Left
+	if (GetAsyncKeyState('J')) {
+		XMMATRIX lo = XMMatrixRotationY(0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	// ViewPort/Camera rotate Right
+	if (GetAsyncKeyState('L')) {
+		XMMATRIX lo = XMMatrixRotationY(-0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
+	}
+	#pragma endregion
+
+
+	// Setting Target View
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
+	
+	// Setting Viewport
+	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
+	
+	// Setting Sampler State
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pSamplerState);
+
+	// Rotating Cube
+	WorldMatrix = XMMatrixRotationY(t);
+
+	// Clearing Back Buffer
+	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
+
+	// Clearing Depth Buffer
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	// Update variables
+	ConstantMatrix constantM;
+	constantM.World						= XMMatrixTranspose(WorldMatrix);
+	constantM.View						= XMMatrixTranspose(ViewMatrix);
+	constantM.Projection				= XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &constantM, 0, 0);
+
+	ConstantMatrix constantPrymid;
+	constantPrymid.World = XMMatrixTranspose(PryamidMatrix);
+	constantPrymid.View = XMMatrixTranspose(ViewMatrix);
+	constantPrymid.Projection = XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, 0, NULL, &constantPrymid, 0, 0);
+
+	ConstantMatrix constantFloor;
+	constantFloor.World = XMMatrixTranspose(FloorMatrix);
+	constantFloor.View = XMMatrixTranspose(ViewMatrix);
+	constantFloor.Projection = XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, 0, NULL, &constantFloor, 0, 0);
+
+	DrawFloor();
+	DrawCube();
+	DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);
+
+	/* Presenting our back buffer to our front buffer */
+	m_pSwapChain->Present(0, 0);
+
+	return true;
+}
+
+
+//----------------------------------------------------------------------------------------------------------
+// Clean/Release the Onjects we have Created in Memory
+//----------------------------------------------------------------------------------------------------------
+void Shutdown() {
+
+	if (m_pSwapChain) { m_pSwapChain->Release(); }
+	if (m_pDevice) { m_pDevice->Release(); }
+	if (m_pRenderTargetView) { m_pRenderTargetView->Release(); }
+	if (m_pDeviceContext) { m_pDeviceContext->Release(); }
+	if (m_pConstantBuffer) { m_pConstantBuffer->Release(); }
+	if (m_pBackBuffer) { m_pBackBuffer->Release(); }
+	if (m_pInput) { m_pInput->Release(); }
+	if (m_pVertexBuffer) { m_pVertexBuffer->Release(); }
+	if (m_pIndexBuffer) { m_pIndexBuffer->Release(); }
+	if (m_pTexture2D) { m_pTexture2D->Release(); }
+	if (m_pDepthStencil) { m_pDepthStencil->Release(); }
+	if (m_pSamplerState) { m_pSamplerState->Release(); }
+	if (m_pTextureRV) { m_pTextureRV->Release(); }
+
+	if(PryamidVertexBuffer) { PryamidVertexBuffer->Release(); }
+	if(PryamidIndexBuffer) { PryamidIndexBuffer->Release(); }
+	if(PryamidConstantBuffer) { PryamidConstantBuffer->Release(); }
+
+	if (m_pVertexShader) { m_pVertexShader->Release(); }
+	if (m_pPixelShader) { m_pPixelShader->Release(); }
+}
+
+
+//----------------------------------------------------------------------------------------------------------
+// Functions: Creating/Initializing Stuff Needed by DirectX
+//----------------------------------------------------------------------------------------------------------
+void SetCube() {
+		#pragma region CUBE RELATED STUFF
 	// Creating Cube Vertex
 	SIMPLE_VERTEX Vertex[] = {
 		#pragma region CubeVerts
@@ -444,208 +665,116 @@ HRESULT Initialize() {
 	data.pSysMem = Indexes;
 	m_pDevice->CreateBuffer(&buffdesc, &data, &m_pIndexBuffer);
 
-	// Load the Texture
-	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTextureRV);
-	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &PryamidTexture);
+	// Initializing/Creating Constant Buffer
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
+#pragma endregion
 
-	// Creating the sample state
-	D3D11_SAMPLER_DESC sampDesc;
-	ZeroMemory(&sampDesc, sizeof(sampDesc));
-	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	sampDesc.MinLOD = 0;
-	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
-	#pragma endregion
+}
 
-
-	// Decleraing Shaders
-	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
-	m_pDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &m_pPixelShader);
-
-	// Defining the Input Layout
-	D3D11_INPUT_ELEMENT_DESC layout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+void Floor()
+{
+	// Creating Floor Vertex
+	SIMPLE_VERTEX Vertex[] = {
+		{ XMFLOAT4(-30.0f, -0.5f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(30.0f, -0.5f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(30.0f, -0.5f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-30.0f, -0.5f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 	};
-	// Number of Elements in the Layout
-	UINT numberOfElements = ARRAYSIZE(layout);
 
-	// Creating the Input Layout
-	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
+	// Initializing Vertex Buffer
+	D3D11_BUFFER_DESC		buffdesc;
+	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA data;
+	ZeroMemory(&data, sizeof(data));
+	data.pSysMem = Vertex;
+
+	// Creating Vertex Buffer
+	m_pDevice->CreateBuffer(&buffdesc, &data, &FloorVertexBuffer);
+
+	// Creating Floor Index
+	DWORD32 Indexes[] = {
+		3,1,0,
+		2,1,3,
+	};
+
+	// Initializing/Creating Index Buffer
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
+	data.pSysMem = Indexes;
+	m_pDevice->CreateBuffer(&buffdesc, &data, &FloorIndexBuffer);
 
 	// Initializing/Creating Constant Buffer
-	buffdesc.Usage						= D3D11_USAGE_DEFAULT;
-	buffdesc.BindFlags					= D3D11_BIND_CONSTANT_BUFFER;
-	buffdesc.ByteWidth					= sizeof(ConstantMatrix);
-	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	m_pDevice->CreateBuffer(&buffdesc, nullptr, &FloorConstantBuffer);
 
-	// Initializing the world matrix
-	WorldMatrix = XMMatrixIdentity();
-	PryamidMatrix = XMMatrixIdentity();
-	PryamidMatrix = XMMatrixTranslation(3, 0, 0);
+}
 
-	// Initializing the view matrix
-	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
+void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& constantBuffer)
+{
+	ObjLoader mesh;
+	mesh.Load(filename);
+	model = mesh;
 
-	// Initializing the projection matrix
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / static_cast<float>(height), 0.01f, 100.0f);
+	SIMPLE_VERTEX* Vertex = new SIMPLE_VERTEX[model.GetModel().size()];
+	unsigned int objIcount = model.GetIndex().size();
+	unsigned int * Indexes = new unsigned int[objIcount];
 
-	VertexIndexConstBuffers("testpyramid.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
+	// Creating Object Vertex
+	for (unsigned int i = 0; i < model.GetModel().size(); i++) {
+		Vertex[i] = model.GetModel()[i];
+	}
+	// Creating Object Index
+	for (unsigned int i = 0; i < model.GetIndex().size(); i++) {
+		Indexes[i] = model.GetIndex()[i];
+	}
 
-	return S_OK;
+	// Initializing Vertex Buffer
+	D3D11_BUFFER_DESC objVertbuffdesc;
+	ZeroMemory(&objVertbuffdesc, sizeof(D3D11_BUFFER_DESC));
+	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	objVertbuffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	objVertbuffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * objIcount;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA objsubResource;
+	ZeroMemory(&objsubResource, sizeof(D3D11_SUBRESOURCE_DATA));
+	objsubResource.pSysMem = Vertex;
+
+	// Creating Vertex Buffer
+	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &vertbuffer);
+
+	// Initializing/Creating Index Buffer
+	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	objVertbuffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	objVertbuffdesc.ByteWidth = sizeof(DWORD32) * objIcount;
+	objsubResource.pSysMem = Indexes;
+	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &indexbuffer);
+
+	// Initializing/Creating Constant Buffer
+	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	objVertbuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	objVertbuffdesc.ByteWidth = sizeof(ConstantMatrix);
+	m_pDevice->CreateBuffer(&objVertbuffdesc, NULL, &constantBuffer);
+
+	delete[] Vertex;
+	delete[] Indexes;
 }
 
 
 //----------------------------------------------------------------------------------------------------------
-// Constant Frame Rendering
+// Functions: Rendering Frame by frame
 //----------------------------------------------------------------------------------------------------------
-bool Run() {
-
-	// Time Per Frame
-	static float t = 0.0f;
-	static ULONGLONG timeStart = 0;
-	ULONGLONG timeCur = GetTickCount64();
-	if (timeStart == 0)
-		timeStart = timeCur;
-	t = (timeCur - timeStart) / 1000.0f;
-
-	// ViewMatrix/ViewPort Movement/Rotation
-	#pragma region Camera Movement
-	if (GetAsyncKeyState('R')) {
-		ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up);
-	}
-	// ViewPort/Camera Zoom In
-	if (GetAsyncKeyState('Q')) {
-		XMMATRIX lo = XMMatrixTranslation(0, 0, -0.001f);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera Zoom Out
-	if (GetAsyncKeyState('E')) {
-		XMMATRIX lo = XMMatrixTranslation(0, 0, 0.001f);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera movement Up
-	if (GetAsyncKeyState('W')) {
-		XMMATRIX lo = XMMatrixTranslation(0, -0.001f, 0);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera movement Down
-	if (GetAsyncKeyState('S')) {
-		XMMATRIX lo = XMMatrixTranslation(0, 0.001f, 0);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera movement Right
-	if (GetAsyncKeyState('D')) {
-		XMMATRIX lo = XMMatrixTranslation(-0.001f, 0, 0);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera movement Left
-	if (GetAsyncKeyState('A')) {
-		XMMATRIX lo = XMMatrixTranslation(0.001f, 0, 0);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera rotate Up
-	if (GetAsyncKeyState('I')) {
-		XMMATRIX lo = XMMatrixRotationX(0.0001);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera rotate Down
-	if (GetAsyncKeyState('K')) {
-		XMMATRIX lo = XMMatrixRotationX(-0.0001);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera rotate Left
-	if (GetAsyncKeyState('J')) {
-		XMMATRIX lo = XMMatrixRotationY(0.0001);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	// ViewPort/Camera rotate Right
-	if (GetAsyncKeyState('L')) {
-		XMMATRIX lo = XMMatrixRotationY(-0.0001);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
-	#pragma endregion
-
-
-	// Setting Target View
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
-	
-	// Setting Viewport
-	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
-	
-	// Rotating Cube
-	WorldMatrix = XMMatrixRotationY(t);
-
-	// Clearing Back Buffer
-	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
-
-	// Clearing Depth Buffer
-	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-	// Update variables
-	ConstantMatrix constantM;
-	constantM.World						= XMMatrixTranspose(WorldMatrix);
-	constantM.View						= XMMatrixTranspose(ViewMatrix);
-	constantM.Projection				= XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &constantM, 0, 0);
-
-	ConstantMatrix constantPrymid;
-	constantPrymid.World = XMMatrixTranspose(PryamidMatrix);
-	constantPrymid.View = XMMatrixTranspose(ViewMatrix);
-	constantPrymid.Projection = XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, 0, NULL, &constantPrymid, 0, 0);
-
-
-
-	DrawCube();
-	DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);
-
-	/* Presenting our back buffer to our front buffer */
-	m_pSwapChain->Present(0, 0);
-
-	return true;
-}
-
-
-//----------------------------------------------------------------------------------------------------------
-// Clean/Release the Onjects we have Created in Memory
-//----------------------------------------------------------------------------------------------------------
-void Shutdown() {
-
-	if (m_pSwapChain) { m_pSwapChain->Release(); }
-	if (m_pDevice) { m_pDevice->Release(); }
-	if (m_pRenderTargetView) { m_pRenderTargetView->Release(); }
-	if (m_pDeviceContext) { m_pDeviceContext->Release(); }
-	if (m_pConstantBuffer) { m_pConstantBuffer->Release(); }
-	if (m_pBackBuffer) { m_pBackBuffer->Release(); }
-	if (m_pInput) { m_pInput->Release(); }
-	if (m_pVertexBuffer) { m_pVertexBuffer->Release(); }
-	if (m_pIndexBuffer) { m_pIndexBuffer->Release(); }
-	if (m_pTexture2D) { m_pTexture2D->Release(); }
-	if (m_pDepthStencil) { m_pDepthStencil->Release(); }
-	if (m_pSamplerState) { m_pSamplerState->Release(); }
-	if (m_pTextureRV) { m_pTextureRV->Release(); }
-
-	if(PryamidVertexBuffer) { PryamidVertexBuffer->Release(); }
-	if(PryamidIndexBuffer) { PryamidIndexBuffer->Release(); }
-	if(PryamidConstantBuffer) { PryamidConstantBuffer->Release(); }
-
-	if (m_pVertexShader) { m_pVertexShader->Release(); }
-	if (m_pPixelShader) { m_pPixelShader->Release(); }
-}
-
-void SetCube() {
-
-
-}
-
 void DrawCube() {
 	/* Renders the Triangles for the Cube */
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
@@ -668,8 +797,6 @@ void DrawCube() {
 	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, 0);
 	// Setting Texture Resource
 	m_pDeviceContext->PSSetShaderResources(0, 1, &m_pTextureRV);
-	// Setting Sampler State
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pSamplerState);
 	// Setting Drawing Indexed Cube
 	m_pDeviceContext->DrawIndexed(36, 0, 0);
 
@@ -677,87 +804,34 @@ void DrawCube() {
 
 void DrawFloor()
 {
-	//m_pDeviceContext->PSSetShaderResources(0, 1, &floortexture);
+	/* Renders the Triangles for the Cube */
+	unsigned int	strides = sizeof(SIMPLE_VERTEX);
+	unsigned int	offsets = 0;
+	// Setting VertexBuffer
+	m_pDeviceContext->IASetVertexBuffers(0, 1, &FloorVertexBuffer, &strides, &offsets);
+	// Setting Input Layout
+	m_pDeviceContext->IASetInputLayout(m_pInput);
+	// Setting Index Buffer
+	m_pDeviceContext->IASetIndexBuffer(FloorIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	// Setting Topology
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	//m_pDeviceContext->VSSetShader(vertexshader, nullptr, NULL);
-	//m_pDeviceContext->PSSetShader(pixelshader, nullptr, NULL);
-	//const unsigned int vertSize = sizeof(Vertex);
-	//const unsigned int nxtvertbuffinMem = 0;
-	//m_pDeviceContext->IASetVertexBuffers(0, 1, &vertexbuffer, &vertSize, &nxtvertbuffinMem);
+	/* Setting Vertex Shader */
+	m_pDeviceContext->VSSetShader(m_pVertexShader, nullptr, NULL);
+	// Setting Constant Buffer
+	m_pDeviceContext->VSSetConstantBuffers(1, 1, &m_pConstantBuffer);
 
-	//m_pDeviceContext->IASetIndexBuffer(floorindexbuffer, DXGI_FORMAT_R32_UINT, NULL);
-
-	//m_pDeviceContext->IASetInputLayout(InputLayout);
-	//// Tells Input Asembler how to draw lines
-	//m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	//// Sets World Const Buffer
-	//m_pDeviceContext->VSSetConstantBuffers(0, 1, &floorworldbuffer);
-	//// Sets Scene Const Buffer
-	//m_pDeviceContext->VSSetConstantBuffers(1, 1, &m_pConstantBuffer);
-
+	/* Setting Pixel Shader */
+	m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, NULL);
+	// Setting Texture Resource
+	m_pDeviceContext->PSSetShaderResources(0, 1, &FloorTexture2D);
+	// Setting Light Buffer
 	//m_pDeviceContext->PSSetConstantBuffers(0, 1, &lightbuffer);
-	//floorcount = ARRAYSIZE(Floor_indicies);
 
-
-
-	//m_pDeviceContext->DrawIndexed(floorcount, 0, 0);
+	m_pDeviceContext->DrawIndexed(6, 0, 0);
 }
 
-void VertexIndexConstBuffers(const char * filename, Object & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& constantBuffer)
-{
-	Object mesh;
-	mesh.Load(filename);
-	model = mesh;
-
-	SIMPLE_VERTEX * vertices = new SIMPLE_VERTEX[model.GetModel().size()];
-	unsigned int objIcount = model.GetIndex().size();
-	unsigned int * indicies = new unsigned int[objIcount];
-
-	for (unsigned int i = 0; i < model.GetModel().size(); i++)
-		vertices[i] = model.GetModel()[i];
-
-	for (unsigned int i = 0; i < model.GetIndex().size(); i++)
-		indicies[i] = model.GetIndex()[i];
-
-	// Describes Object Vertex Buffer //
-	D3D11_BUFFER_DESC objVertbuffdesc;
-	ZeroMemory(&objVertbuffdesc, sizeof(D3D11_BUFFER_DESC));
-	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
-	objVertbuffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	objVertbuffdesc.CPUAccessFlags = NULL;
-	objVertbuffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * objIcount;
-
-	D3D11_SUBRESOURCE_DATA objsubResource;
-	ZeroMemory(&objsubResource, sizeof(D3D11_SUBRESOURCE_DATA));
-	objsubResource.pSysMem = vertices;
-
-	// Creating Cube Vertex Buffer // 
-	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &vertbuffer);
-
-	D3D11_BUFFER_DESC objIndexbuffdesc;
-	ZeroMemory(&objIndexbuffdesc, sizeof(D3D11_BUFFER_DESC));
-	objIndexbuffdesc.Usage = D3D11_USAGE_DEFAULT;
-	objIndexbuffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	objIndexbuffdesc.CPUAccessFlags = NULL;
-	objIndexbuffdesc.ByteWidth = sizeof(unsigned int) * objIcount;
-
-	objsubResource.pSysMem = indicies;
-
-	m_pDevice->CreateBuffer(&objIndexbuffdesc, &objsubResource, &indexbuffer);
-
-	D3D11_BUFFER_DESC constobjScenebuffdesc;
-	ZeroMemory(&constobjScenebuffdesc, sizeof(D3D11_BUFFER_DESC));
-	constobjScenebuffdesc.Usage = D3D11_USAGE_DEFAULT;
-	constobjScenebuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	constobjScenebuffdesc.ByteWidth = sizeof(ConstantMatrix);
-
-	m_pDevice->CreateBuffer(&constobjScenebuffdesc, NULL, &constantBuffer);
-
-	delete[] vertices;
-	delete[] indicies;
-}
-
-void DrawObject(Object & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * constantBuffer, ID3D11ShaderResourceView * texture)
+void DrawObject(ObjLoader & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * constantBuffer, ID3D11ShaderResourceView * texture)
 {
 
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);

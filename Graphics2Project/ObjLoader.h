@@ -1,7 +1,7 @@
 #pragma once
 #include "stdafx.h"
 
-class Object
+class ObjLoader
 {
 
 	vector<SIMPLE_VERTEX> model;
@@ -9,8 +9,8 @@ class Object
 
 public:
 
-	Object() = default;
-	~Object() = default;
+	ObjLoader() = default;
+	~ObjLoader() = default;
 
 	vector<SIMPLE_VERTEX> & GetModel()  { return model; }
 	vector<unsigned int> & GetIndex() { return index; }
@@ -18,14 +18,14 @@ public:
 	bool Load(const char * filepath);
 };
 
-bool Object::Load(const char * filepath)
+bool ObjLoader::Load(const char * filepath)
 {
 	FILE * file = fopen(filepath, "r");
 	// File Path fails Exit // 
 	if (file == nullptr)
 		return false;
 
-	vector<XMFLOAT4> position, normals, tempVertices, tempNormals;
+	vector<XMFLOAT4> points, normals, tempVertices, tempNormals;
 	vector<XMFLOAT2> uv, tempUV;
 	vector<unsigned int> posIndices, uvIndices, normalIndices;
 
@@ -58,9 +58,9 @@ bool Object::Load(const char * filepath)
 		{
 			unsigned int vertexIndex[3], uvIndex[3], normalIndex[3];
 			int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n",
-				&vertexIndex[0], &uvIndex[0], &normalIndex[0],
-				&vertexIndex[1], &uvIndex[1], &normalIndex[1],
-				&vertexIndex[2], &uvIndex[2], &normalIndex[2]);
+			&vertexIndex[0], &uvIndex[0], &normalIndex[0],
+			&vertexIndex[1], &uvIndex[1], &normalIndex[1],
+			&vertexIndex[2], &uvIndex[2], &normalIndex[2]);
 
 			posIndices.push_back(vertexIndex[0]);
 			posIndices.push_back(vertexIndex[1]);
@@ -76,14 +76,14 @@ bool Object::Load(const char * filepath)
 		}
 	}
 
-	position = tempVertices;
+	points = tempVertices;
 	uv = tempUV;
 	normals = tempNormals;
 
 	for (unsigned int i = 0; i < posIndices.size(); i++)
 	{
 		SIMPLE_VERTEX temp;
-		temp.points = position[posIndices[i] - 1];
+		temp.points = points[posIndices[i] - 1];
 		temp.uvs = uv[uvIndices[i] - 1];
 		temp.uvs.y = 1.0f - temp.uvs.y;
 		temp.normals = normals[normalIndices[i] - 1];
