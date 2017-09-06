@@ -30,6 +30,9 @@
     <ClInclude Include="DDSTextureLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ObjLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -54,7 +57,12 @@
     <Image Include="Graphics2Project.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="Files\greendragon.dds" />
+    <Image Include="Files\greendragon.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Files\Box_Circuit.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Files\Trivial_PS.hlsl" />

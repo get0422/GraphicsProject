@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "Graphics2Project.h"
+#include "ObjLoader.h"
 
 #define MAX_LOADSTRING 100
 #define BACKBUFFER_WIDTH	500 // 729
@@ -24,12 +25,15 @@ IDXGISwapChain*					m_pSwapChain			= nullptr;
 ID3D11RenderTargetView*			m_pRenderTargetView 	= nullptr;
 ID3D11InputLayout*				m_pInput				= nullptr;
 ID3D11Resource*					m_pBackBuffer			= nullptr;
+
 ID3D11Buffer*					m_pVertexBuffer			= nullptr;
 ID3D11Buffer*					m_pIndexBuffer			= nullptr;
 ID3D11Buffer*					m_pConstantBuffer		= nullptr;
 ID3D11Texture2D*				m_pTexture2D			= nullptr;
+
 ID3D11DepthStencilView*			m_pDepthStencil			= nullptr;
 ID3D11SamplerState*				m_pSamplerState			= nullptr;
+
 ID3D11ShaderResourceView*		m_pTextureRV			= nullptr;
 
 ID3D11VertexShader* 			m_pVertexShader			= nullptr;
@@ -51,30 +55,18 @@ XMVECTOR Focus					= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR Up						= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR ResetEye = Eye;
 
-XMFLOAT4 black = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+// Need for Loading Pryamid
+Object							Pryamid;
+XMMATRIX						PryamidMatrix;
+ID3D11Buffer*					PryamidVertexBuffer		= nullptr;
+ID3D11Buffer*					PryamidIndexBuffer		= nullptr;
+ID3D11Buffer*					PryamidConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		PryamidTexture			= nullptr;
+
 #pragma endregion
 
 
-//----------------------------------------------------------------------------------------------------------
-// Structures:
-//----------------------------------------------------------------------------------------------------------
-#pragma region
-// Vertex Loading
-struct SIMPLE_VERTEX {
-	XMFLOAT4					points;
-	XMFLOAT4					Color;
-	XMFLOAT2					uvs;
-	XMFLOAT4					normals;
-};
 
-// Constant Buffer 1
-struct ConstantMatrix
-{
-	XMMATRIX					World;
-	XMMATRIX					View;
-	XMMATRIX					Projection;
-};
-#pragma endregion
 
 
 //----------------------------------------------------------------------------------------------------------
@@ -88,6 +80,10 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 HRESULT Initialize();
 void Shutdown();
 bool Run();
+void DrawCube();
+void SetCube();
+void VertexIndexConstBuffers(const char * filename, Object & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
+void DrawObject(Object & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * worldbuffer, ID3D11ShaderResourceView * texture);
 
 // Microsoft::WRL::ComPtr<var> name;
 #pragma endregion
@@ -299,7 +295,6 @@ HRESULT Initialize() {
 	// Initializing the SwapChain
 	m_pSwapChain->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&m_pBackBuffer));
 	m_pDevice->CreateRenderTargetView(m_pBackBuffer, NULL, &m_pRenderTargetView);
-	m_pBackBuffer->Release();
 	
 	// Create depth stencil texture
 	D3D11_TEXTURE2D_DESC texturedesc;
@@ -333,39 +328,40 @@ HRESULT Initialize() {
 	m_ViewPort.TopLeftX = 0;
 	m_ViewPort.TopLeftY = 0;
 
+	#pragma region CUBE RELATED STUFF
 	// Creating Cube Vertex
 	SIMPLE_VERTEX Vertex[] = {
 		#pragma region CubeVerts
 		#if TextureCube
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
 
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
 		#endif // 0
 
 		#if ColorCube
@@ -418,7 +414,7 @@ HRESULT Initialize() {
 		22,20,21,
 		23,20,22
 		#endif // 0
-		
+
 		#if ColorCube
 		3,1,0,
 		2,1,3,
@@ -449,7 +445,8 @@ HRESULT Initialize() {
 	m_pDevice->CreateBuffer(&buffdesc, &data, &m_pIndexBuffer);
 
 	// Load the Texture
-	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &m_pTextureRV);
+	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTextureRV);
+	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &PryamidTexture);
 
 	// Creating the sample state
 	D3D11_SAMPLER_DESC sampDesc;
@@ -462,6 +459,8 @@ HRESULT Initialize() {
 	sampDesc.MinLOD = 0;
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
+	#pragma endregion
+
 
 	// Decleraing Shaders
 	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
@@ -489,12 +488,16 @@ HRESULT Initialize() {
 
 	// Initializing the world matrix
 	WorldMatrix = XMMatrixIdentity();
+	PryamidMatrix = XMMatrixIdentity();
+	PryamidMatrix = XMMatrixTranslation(3, 0, 0);
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 
 	// Initializing the projection matrix
 	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / static_cast<float>(height), 0.01f, 100.0f);
+
+	VertexIndexConstBuffers("testpyramid.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
 
 	return S_OK;
 }
@@ -504,6 +507,14 @@ HRESULT Initialize() {
 // Constant Frame Rendering
 //----------------------------------------------------------------------------------------------------------
 bool Run() {
+
+	// Time Per Frame
+	static float t = 0.0f;
+	static ULONGLONG timeStart = 0;
+	ULONGLONG timeCur = GetTickCount64();
+	if (timeStart == 0)
+		timeStart = timeCur;
+	t = (timeCur - timeStart) / 1000.0f;
 
 	// ViewMatrix/ViewPort Movement/Rotation
 	#pragma region Camera Movement
@@ -570,7 +581,7 @@ bool Run() {
 	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
 	
 	// Rotating Cube
-	WorldMatrix = XMMatrixRotationY(2.5);
+	WorldMatrix = XMMatrixRotationY(t);
 
 	// Clearing Back Buffer
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
@@ -585,31 +596,16 @@ bool Run() {
 	constantM.Projection				= XMMatrixTranspose(ProjectionMatrix);
 	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &constantM, 0, 0);
 
-	/* Renders the Triangles for the Cube */
-	unsigned int	strides = sizeof(SIMPLE_VERTEX);
-	unsigned int	offsets = 0;
-	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &strides, &offsets);
-	// Setting Input Layout
-	m_pDeviceContext->IASetInputLayout(m_pInput);
-	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	// Setting Topology
-	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	
-	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, 0);
-	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
-	
-	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, 0);
-	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(0, 1, &m_pTextureRV);
-	// Setting Sampler State
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pSamplerState);
-	// Setting Drawing Indexed Cube
-	m_pDeviceContext->DrawIndexed(36, 0, 0);
+	ConstantMatrix constantPrymid;
+	constantPrymid.World = XMMatrixTranspose(PryamidMatrix);
+	constantPrymid.View = XMMatrixTranspose(ViewMatrix);
+	constantPrymid.Projection = XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, 0, NULL, &constantPrymid, 0, 0);
+
+
+
+	DrawCube();
+	DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);
 
 	/* Presenting our back buffer to our front buffer */
 	m_pSwapChain->Present(0, 0);
@@ -632,11 +628,156 @@ void Shutdown() {
 	if (m_pInput) { m_pInput->Release(); }
 	if (m_pVertexBuffer) { m_pVertexBuffer->Release(); }
 	if (m_pIndexBuffer) { m_pIndexBuffer->Release(); }
-	if (m_pTexture2D	) { m_pTexture2D->Release(); }
-	if (m_pDepthStencil ) { m_pDepthStencil->Release(); }
-	if (m_pSamplerState ) { m_pSamplerState->Release(); }
-	if (m_pTextureRV	) { m_pTextureRV->Release(); }
+	if (m_pTexture2D) { m_pTexture2D->Release(); }
+	if (m_pDepthStencil) { m_pDepthStencil->Release(); }
+	if (m_pSamplerState) { m_pSamplerState->Release(); }
+	if (m_pTextureRV) { m_pTextureRV->Release(); }
+
+	if(PryamidVertexBuffer) { PryamidVertexBuffer->Release(); }
+	if(PryamidIndexBuffer) { PryamidIndexBuffer->Release(); }
+	if(PryamidConstantBuffer) { PryamidConstantBuffer->Release(); }
 
 	if (m_pVertexShader) { m_pVertexShader->Release(); }
 	if (m_pPixelShader) { m_pPixelShader->Release(); }
+}
+
+void SetCube() {
+
+
+}
+
+void DrawCube() {
+	/* Renders the Triangles for the Cube */
+	unsigned int	strides = sizeof(SIMPLE_VERTEX);
+	unsigned int	offsets = 0;
+	// Setting VertexBuffer
+	m_pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &strides, &offsets);
+	// Setting Input Layout
+	m_pDeviceContext->IASetInputLayout(m_pInput);
+	// Setting Index Buffer
+	m_pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	// Setting Topology
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	/* Setting Vertex Shader */
+	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, 0);
+	// Setting Constant Buffer
+	m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
+
+	/* Setting Pixel Shader */
+	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, 0);
+	// Setting Texture Resource
+	m_pDeviceContext->PSSetShaderResources(0, 1, &m_pTextureRV);
+	// Setting Sampler State
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pSamplerState);
+	// Setting Drawing Indexed Cube
+	m_pDeviceContext->DrawIndexed(36, 0, 0);
+
+}
+
+void DrawFloor()
+{
+	//m_pDeviceContext->PSSetShaderResources(0, 1, &floortexture);
+
+	//m_pDeviceContext->VSSetShader(vertexshader, nullptr, NULL);
+	//m_pDeviceContext->PSSetShader(pixelshader, nullptr, NULL);
+	//const unsigned int vertSize = sizeof(Vertex);
+	//const unsigned int nxtvertbuffinMem = 0;
+	//m_pDeviceContext->IASetVertexBuffers(0, 1, &vertexbuffer, &vertSize, &nxtvertbuffinMem);
+
+	//m_pDeviceContext->IASetIndexBuffer(floorindexbuffer, DXGI_FORMAT_R32_UINT, NULL);
+
+	//m_pDeviceContext->IASetInputLayout(InputLayout);
+	//// Tells Input Asembler how to draw lines
+	//m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//// Sets World Const Buffer
+	//m_pDeviceContext->VSSetConstantBuffers(0, 1, &floorworldbuffer);
+	//// Sets Scene Const Buffer
+	//m_pDeviceContext->VSSetConstantBuffers(1, 1, &m_pConstantBuffer);
+
+	//m_pDeviceContext->PSSetConstantBuffers(0, 1, &lightbuffer);
+	//floorcount = ARRAYSIZE(Floor_indicies);
+
+
+
+	//m_pDeviceContext->DrawIndexed(floorcount, 0, 0);
+}
+
+void VertexIndexConstBuffers(const char * filename, Object & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& constantBuffer)
+{
+	Object mesh;
+	mesh.Load(filename);
+	model = mesh;
+
+	SIMPLE_VERTEX * vertices = new SIMPLE_VERTEX[model.GetModel().size()];
+	unsigned int objIcount = model.GetIndex().size();
+	unsigned int * indicies = new unsigned int[objIcount];
+
+	for (unsigned int i = 0; i < model.GetModel().size(); i++)
+		vertices[i] = model.GetModel()[i];
+
+	for (unsigned int i = 0; i < model.GetIndex().size(); i++)
+		indicies[i] = model.GetIndex()[i];
+
+	// Describes Object Vertex Buffer //
+	D3D11_BUFFER_DESC objVertbuffdesc;
+	ZeroMemory(&objVertbuffdesc, sizeof(D3D11_BUFFER_DESC));
+	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	objVertbuffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	objVertbuffdesc.CPUAccessFlags = NULL;
+	objVertbuffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * objIcount;
+
+	D3D11_SUBRESOURCE_DATA objsubResource;
+	ZeroMemory(&objsubResource, sizeof(D3D11_SUBRESOURCE_DATA));
+	objsubResource.pSysMem = vertices;
+
+	// Creating Cube Vertex Buffer // 
+	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &vertbuffer);
+
+	D3D11_BUFFER_DESC objIndexbuffdesc;
+	ZeroMemory(&objIndexbuffdesc, sizeof(D3D11_BUFFER_DESC));
+	objIndexbuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	objIndexbuffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	objIndexbuffdesc.CPUAccessFlags = NULL;
+	objIndexbuffdesc.ByteWidth = sizeof(unsigned int) * objIcount;
+
+	objsubResource.pSysMem = indicies;
+
+	m_pDevice->CreateBuffer(&objIndexbuffdesc, &objsubResource, &indexbuffer);
+
+	D3D11_BUFFER_DESC constobjScenebuffdesc;
+	ZeroMemory(&constobjScenebuffdesc, sizeof(D3D11_BUFFER_DESC));
+	constobjScenebuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	constobjScenebuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	constobjScenebuffdesc.ByteWidth = sizeof(ConstantMatrix);
+
+	m_pDevice->CreateBuffer(&constobjScenebuffdesc, NULL, &constantBuffer);
+
+	delete[] vertices;
+	delete[] indicies;
+}
+
+void DrawObject(Object & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * constantBuffer, ID3D11ShaderResourceView * texture)
+{
+
+	unsigned int	strides = sizeof(SIMPLE_VERTEX);
+	unsigned int	offsets = 0;
+	// Setting VertexBuffer
+	m_pDeviceContext->IASetVertexBuffers(0, 1, &vertexbuffer, &strides, &offsets);
+	// Setting Input Layout
+	m_pDeviceContext->IASetInputLayout(m_pInput);
+	// Setting Index Buffer
+	m_pDeviceContext->IASetIndexBuffer(indexbuffer, DXGI_FORMAT_R32_UINT, NULL);
+	// Setting Topology
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	/* Setting Vertex Shader */
+	m_pDeviceContext->VSSetShader(m_pVertexShader, nullptr, NULL);
+	// Setting Constant Buffer
+	m_pDeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
+	/* Setting Pixel Shader */
+	m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, NULL);
+	// Setting Texture Resource
+	m_pDeviceContext->PSSetShaderResources(0, 1, &texture);
+	// Setting Drawing Indexed Cube
+	m_pDeviceContext->DrawIndexed(model.GetIndex().size(), 0, 0);
 }

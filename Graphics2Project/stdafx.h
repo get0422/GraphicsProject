@@ -18,7 +18,7 @@
 #include <tchar.h>
 #include <iostream>
 #include <ctime>
-
+#include <vector>
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
 
@@ -35,3 +35,24 @@ using namespace DirectX;
 #include "Trivial_PS.csh"
 #include "DDSTextureLoader.h"
 // TODO: reference additional headers your program requires here
+
+//----------------------------------------------------------------------------------------------------------
+// Structures:
+//----------------------------------------------------------------------------------------------------------
+#pragma region
+// Vertex Loading
+struct SIMPLE_VERTEX {
+	XMFLOAT4					points;
+	XMFLOAT4					Color;
+	XMFLOAT2					uvs;
+	XMFLOAT4					normals;
+};
+
+// Constant Buffer 1
+struct ConstantMatrix
+{
+	XMMATRIX					World;
+	XMMATRIX					View;
+	XMMATRIX					Projection;
+};
+#pragma endregion
