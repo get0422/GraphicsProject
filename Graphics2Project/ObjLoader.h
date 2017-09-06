@@ -3,7 +3,6 @@
 
 class ObjLoader
 {
-
 	vector<SIMPLE_VERTEX> model;
 	vector<unsigned int> index;
 
@@ -21,7 +20,7 @@ public:
 bool ObjLoader::Load(const char * filepath)
 {
 	FILE * file = fopen(filepath, "r");
-	// File Path fails Exit // 
+
 	if (file == nullptr)
 		return false;
 

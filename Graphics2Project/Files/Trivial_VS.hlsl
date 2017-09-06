@@ -34,7 +34,8 @@ OUTPUT_VERTEX main(INPUT_VERTEX input)
 	output.projectedCoordinate = localH;
 	output.colorOut = input.color;
 	output.uvH = input.uvL;
-	output.normalH = input.normalL;
+
+	output.normalH = mul(float4(input.normalL.xyz, 0), WorldMatrix);
 
 	return output;
 }

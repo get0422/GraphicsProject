@@ -55,4 +55,12 @@ struct ConstantMatrix
 	XMMATRIX					View;
 	XMMATRIX					Projection;
 };
+
+struct Lighting
+{
+	XMFLOAT4 Direction;
+	XMFLOAT4 Color;
+	XMFLOAT4 Position;
+	XMFLOAT4 Radius;
+};
 #pragma endregion

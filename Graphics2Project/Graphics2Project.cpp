@@ -70,6 +70,11 @@ ID3D11Buffer*					FloorIndexBuffer		= nullptr;
 ID3D11Buffer*					FloorConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		FloorTexture2D			= nullptr;
 
+// Need For Lighting
+Lighting Lights[3];
+XMMATRIX						LightMatrix;
+ID3D11Buffer*					LightConstantBuffer	= nullptr;
+
 #pragma endregion
 
 
@@ -289,7 +294,7 @@ HRESULT Initialize() {
 	swapdesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	swapdesc.OutputWindow = hWnd;
 	swapdesc.SampleDesc.Count = 1;
-	swapdesc.SampleDesc.Quality = 0;
+	swapdesc.SampleDesc.Quality = NULL;
 	swapdesc.Windowed = true;
 
 	D3D_FEATURE_LEVEL FeatureLevels[4] = { D3D_FEATURE_LEVEL_10_0,D3D_FEATURE_LEVEL_10_1,D3D_FEATURE_LEVEL_11_0,D3D_FEATURE_LEVEL_11_1 };
@@ -311,11 +316,11 @@ HRESULT Initialize() {
 	texturedesc.ArraySize = 1;
 	texturedesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	texturedesc.SampleDesc.Count = 1;
-	texturedesc.SampleDesc.Quality = 0;
+	texturedesc.SampleDesc.Quality = NULL;
 	texturedesc.Usage = D3D11_USAGE_DEFAULT;
 	texturedesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	texturedesc.CPUAccessFlags = 0;
-	texturedesc.MiscFlags = 0;
+	texturedesc.CPUAccessFlags = NULL;
+	texturedesc.MiscFlags = NULL;
 	m_pDevice->CreateTexture2D(&texturedesc, NULL, &m_pTexture2D);
 
 	// Create the depth stencil view
@@ -323,7 +328,7 @@ HRESULT Initialize() {
 	ZeroMemory(&descDSV, sizeof(descDSV));
 	descDSV.Format = texturedesc.Format;
 	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	descDSV.Texture2D.MipSlice = 0;
+	descDSV.Texture2D.MipSlice = NULL;
 	m_pDevice->CreateDepthStencilView(m_pTexture2D, &descDSV, &m_pDepthStencil);
 
 	// Initializing the Viewport
@@ -340,14 +345,32 @@ HRESULT Initialize() {
 	
 	// Setting Onject
 	VertexIndexConstBuffers("Files/testpyramid.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
-
-
+	
 	// Loading Indexed Geometry Textures
 	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTextureRV);
 	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &FloorTexture2D);
 
 	// Loading Object Textures 
 	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &PryamidTexture);
+
+	/* Setting Lighting */
+	// Directional Lighting
+	Lights[0].Color		= XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+	Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+
+	// Point Light
+	Lights[1].Position	= XMFLOAT4(-4.0f, 1.0f, 0.0f, 0.0f);
+	Lights[1].Color		= XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
+	Lights[1].Radius	= XMFLOAT4(1.0f, 2.0f, 0.0f, 0.0f);
+
+	D3D11_BUFFER_DESC lightbuffdesc;
+	ZeroMemory(&lightbuffdesc, sizeof(D3D11_BUFFER_DESC));
+	lightbuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	lightbuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	lightbuffdesc.ByteWidth = sizeof(Lighting);
+	m_pDevice->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer);
+
+
 
 	// Creating the sample state
 	D3D11_SAMPLER_DESC sampDesc;
@@ -369,10 +392,10 @@ HRESULT Initialize() {
 	// Defining the Input Layout
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "POSITION", NULL, DXGI_FORMAT_R32G32B32A32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
+		{ "COLOR", NULL, DXGI_FORMAT_R32G32B32A32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
+		{ "UV", NULL, DXGI_FORMAT_R32G32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
+		{ "NORMAL", NULL, DXGI_FORMAT_R32G32B32A32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
 	};
 	// Number of Elements in the Layout
 	UINT numberOfElements = ARRAYSIZE(layout);
@@ -413,61 +436,28 @@ bool Run() {
 
 	// ViewMatrix/ViewPort Movement/Rotation
 	#pragma region Camera Movement
-	if (GetAsyncKeyState('R')) {
-		ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up);
-	}
+	if (GetAsyncKeyState('R')) { ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); }
 	// ViewPort/Camera Zoom In
-	if (GetAsyncKeyState('Q')) {
-		XMMATRIX lo = XMMatrixTranslation(0, 0, -0.001f);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('Q')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, -0.001f)); }
 	// ViewPort/Camera Zoom Out
-	if (GetAsyncKeyState('E')) {
-		XMMATRIX lo = XMMatrixTranslation(0, 0, 0.001f);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('E')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, 0.001f)); }
 	// ViewPort/Camera movement Up
-	if (GetAsyncKeyState('W')) {
-		XMMATRIX lo = XMMatrixTranslation(0, -0.001f, 0);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('W')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, -0.001f, 0)); }
 	// ViewPort/Camera movement Down
-	if (GetAsyncKeyState('S')) {
-		XMMATRIX lo = XMMatrixTranslation(0, 0.001f, 0);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('S')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0.001f, 0)); }
 	// ViewPort/Camera movement Right
-	if (GetAsyncKeyState('D')) {
-		XMMATRIX lo = XMMatrixTranslation(-0.001f, 0, 0);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('D')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(-0.001f, 0, 0)); }
 	// ViewPort/Camera movement Left
-	if (GetAsyncKeyState('A')) {
-		XMMATRIX lo = XMMatrixTranslation(0.001f, 0, 0);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('A')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0.001f, 0, 0)); }
 	// ViewPort/Camera rotate Up
-	if (GetAsyncKeyState('I')) {
-		XMMATRIX lo = XMMatrixRotationX(0.0001);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('I')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(0.0001)); }
 	// ViewPort/Camera rotate Down
-	if (GetAsyncKeyState('K')) {
-		XMMATRIX lo = XMMatrixRotationX(-0.0001);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('K')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(-0.0001)); }
 	// ViewPort/Camera rotate Left
-	if (GetAsyncKeyState('J')) {
-		XMMATRIX lo = XMMatrixRotationY(0.0001);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('J')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(0.0001)); }
 	// ViewPort/Camera rotate Right
-	if (GetAsyncKeyState('L')) {
-		XMMATRIX lo = XMMatrixRotationY(-0.0001);
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, lo);
-	}
+	if (GetAsyncKeyState('L')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(-0.0001)); }
 	#pragma endregion
-
 
 	// Setting Target View
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
@@ -476,7 +466,10 @@ bool Run() {
 	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
 	
 	// Setting Sampler State
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pSamplerState);
+	m_pDeviceContext->PSSetSamplers(NULL, 1, &m_pSamplerState);
+
+	// Setting Light Buffer
+	m_pDeviceContext->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer);
 
 	// Rotating Cube
 	WorldMatrix = XMMatrixRotationY(t);
@@ -485,26 +478,48 @@ bool Run() {
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
 
 	// Clearing Depth Buffer
-	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, NULL);
 
 	// Update variables
 	ConstantMatrix constantM;
 	constantM.World						= XMMatrixTranspose(WorldMatrix);
 	constantM.View						= XMMatrixTranspose(ViewMatrix);
 	constantM.Projection				= XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &constantM, 0, 0);
+	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, NULL, NULL, &constantM, NULL, NULL);
 
 	ConstantMatrix constantPrymid;
 	constantPrymid.World = XMMatrixTranspose(PryamidMatrix);
 	constantPrymid.View = XMMatrixTranspose(ViewMatrix);
 	constantPrymid.Projection = XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, 0, NULL, &constantPrymid, 0, 0);
+	m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, NULL, NULL, &constantPrymid, NULL, NULL);
 
 	ConstantMatrix constantFloor;
 	constantFloor.World = XMMatrixTranspose(FloorMatrix);
 	constantFloor.View = XMMatrixTranspose(ViewMatrix);
 	constantFloor.Projection = XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, 0, NULL, &constantFloor, 0, 0);
+	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
+
+	Lighting constantDirectionalLight;
+	constantDirectionalLight.Color = Lights[0].Color;
+	constantDirectionalLight.Direction = Lights[0].Direction;
+	constantDirectionalLight.Position;
+	constantDirectionalLight.Radius;
+	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantDirectionalLight, NULL, NULL);
+
+	Lighting constantPointLight;
+	//constantPointLight.Color = Lights[1].Color;
+	//constantPointLight.Direction;
+	//constantPointLight.Position = Lights[1].Position;
+	//constantPointLight.Radius = Lights[1].Radius;
+	//m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantPointLight, NULL, NULL);
+
+	//Lighting constantLight;
+	//constantLight.Color = Lights[0].Color;
+	//constantLight.Direction = Lights[0].Direction;
+	//constantLight.Position;
+	//constantLight.Radius;
+	//m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
+
 
 	DrawFloor();
 	DrawCube();
@@ -549,7 +564,6 @@ void Shutdown() {
 // Functions: Creating/Initializing Stuff Needed by DirectX
 //----------------------------------------------------------------------------------------------------------
 void SetCube() {
-		#pragma region CUBE RELATED STUFF
 	// Creating Cube Vertex
 	SIMPLE_VERTEX Vertex[] = {
 		#pragma region CubeVerts
@@ -670,18 +684,16 @@ void SetCube() {
 	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	buffdesc.ByteWidth = sizeof(ConstantMatrix);
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
-#pragma endregion
-
 }
 
 void Floor()
 {
 	// Creating Floor Vertex
 	SIMPLE_VERTEX Vertex[] = {
-		{ XMFLOAT4(-30.0f, -0.5f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-30.0f, -0.5f, -30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 		{ XMFLOAT4(30.0f, -0.5f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 		{ XMFLOAT4(30.0f, -0.5f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-30.0f, -0.5f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-30.0f, -0.5f,  30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 	};
 
 	// Initializing Vertex Buffer
@@ -720,10 +732,10 @@ void Floor()
 
 }
 
-void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& constantBuffer)
+void VertexIndexConstBuffers(const char * fileName, ObjLoader & model, ID3D11Buffer *& vertBuffer, ID3D11Buffer *& indexBuffer, ID3D11Buffer *& constantBuffer)
 {
 	ObjLoader mesh;
-	mesh.Load(filename);
+	mesh.Load(fileName);
 	model = mesh;
 
 	SIMPLE_VERTEX* Vertex = new SIMPLE_VERTEX[model.GetModel().size()];
@@ -752,14 +764,14 @@ void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buf
 	objsubResource.pSysMem = Vertex;
 
 	// Creating Vertex Buffer
-	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &vertbuffer);
+	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &vertBuffer);
 
 	// Initializing/Creating Index Buffer
 	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
 	objVertbuffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	objVertbuffdesc.ByteWidth = sizeof(DWORD32) * objIcount;
 	objsubResource.pSysMem = Indexes;
-	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &indexbuffer);
+	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &indexBuffer);
 
 	// Initializing/Creating Constant Buffer
 	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
@@ -780,24 +792,25 @@ void DrawCube() {
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &strides, &offsets);
+	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &m_pVertexBuffer, &strides, &offsets);
 	// Setting Input Layout
 	m_pDeviceContext->IASetInputLayout(m_pInput);
 	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	m_pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
 	// Setting Topology
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, 0);
+	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
 	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pConstantBuffer);
+	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &m_pConstantBuffer);
 
 	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, 0);
+	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(0, 1, &m_pTextureRV);
-	// Setting Drawing Indexed Cube
+	m_pDeviceContext->PSSetShaderResources(NULL, 1, &m_pTextureRV);
+
+	// Drawing Indexed Cube
 	m_pDeviceContext->DrawIndexed(36, 0, 0);
 
 }
@@ -808,7 +821,7 @@ void DrawFloor()
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(0, 1, &FloorVertexBuffer, &strides, &offsets);
+	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &FloorVertexBuffer, &strides, &offsets);
 	// Setting Input Layout
 	m_pDeviceContext->IASetInputLayout(m_pInput);
 	// Setting Index Buffer
@@ -824,34 +837,34 @@ void DrawFloor()
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(0, 1, &FloorTexture2D);
-	// Setting Light Buffer
-	//m_pDeviceContext->PSSetConstantBuffers(0, 1, &lightbuffer);
+	m_pDeviceContext->PSSetShaderResources(NULL, 1, &FloorTexture2D);
 
+	// Drawing Indexed Quad
 	m_pDeviceContext->DrawIndexed(6, 0, 0);
 }
 
-void DrawObject(ObjLoader & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * constantBuffer, ID3D11ShaderResourceView * texture)
+void DrawObject(ObjLoader & model, ID3D11Buffer * vertexBuffer, ID3D11Buffer * indexBuffer, ID3D11Buffer * constantBuffer, ID3D11ShaderResourceView * texture)
 {
 
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(0, 1, &vertexbuffer, &strides, &offsets);
+	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &vertexBuffer, &strides, &offsets);
 	// Setting Input Layout
 	m_pDeviceContext->IASetInputLayout(m_pInput);
 	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(indexbuffer, DXGI_FORMAT_R32_UINT, NULL);
+	m_pDeviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, NULL);
 	// Setting Topology
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	/* Setting Vertex Shader */
 	m_pDeviceContext->VSSetShader(m_pVertexShader, nullptr, NULL);
 	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
+	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &constantBuffer);
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(0, 1, &texture);
-	// Setting Drawing Indexed Cube
+	m_pDeviceContext->PSSetShaderResources(NULL, 1, &texture);
+
+	// Drawing Indexed Model
 	m_pDeviceContext->DrawIndexed(model.GetIndex().size(), 0, 0);
 }
