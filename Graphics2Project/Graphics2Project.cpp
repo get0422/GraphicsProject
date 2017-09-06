@@ -354,14 +354,16 @@ HRESULT Initialize() {
 	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &PryamidTexture);
 
 	/* Setting Lighting */
-	// Directional Lighting
-	Lights[0].Color		= XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
-	Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+
 
 	// Point Light
 	Lights[1].Position	= XMFLOAT4(-4.0f, 1.0f, 0.0f, 0.0f);
 	Lights[1].Color		= XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
 	Lights[1].Radius	= XMFLOAT4(1.0f, 2.0f, 0.0f, 0.0f);
+
+	// Directional Lighting
+	Lights[2].Color = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+	Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
 
 	D3D11_BUFFER_DESC lightbuffdesc;
 	ZeroMemory(&lightbuffdesc, sizeof(D3D11_BUFFER_DESC));
@@ -500,19 +502,18 @@ bool Run() {
 	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
 
 	Lighting constantDirectionalLight;
-	constantDirectionalLight.Color = Lights[0].Color;
-	constantDirectionalLight.Direction = Lights[0].Direction;
+	constantDirectionalLight.Color = Lights[2].Color;
+	constantDirectionalLight.Direction = Lights[2].Direction;
 	constantDirectionalLight.Position;
 	constantDirectionalLight.Radius;
 	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantDirectionalLight, NULL, NULL);
 
-	Lighting constantPointLight;
+	//Lighting constantPointLight;
 	//constantPointLight.Color = Lights[1].Color;
 	//constantPointLight.Direction;
 	//constantPointLight.Position = Lights[1].Position;
 	//constantPointLight.Radius = Lights[1].Radius;
 	//m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantPointLight, NULL, NULL);
-
 	//Lighting constantLight;
 	//constantLight.Color = Lights[0].Color;
 	//constantLight.Direction = Lights[0].Direction;
@@ -554,6 +555,14 @@ void Shutdown() {
 	if(PryamidVertexBuffer) { PryamidVertexBuffer->Release(); }
 	if(PryamidIndexBuffer) { PryamidIndexBuffer->Release(); }
 	if(PryamidConstantBuffer) { PryamidConstantBuffer->Release(); }
+	if (PryamidTexture) { PryamidTexture->Release(); }
+
+	if (FloorVertexBuffer) { FloorVertexBuffer->Release(); }
+	if (FloorIndexBuffer) { FloorIndexBuffer->Release(); }
+	if (FloorConstantBuffer) { FloorConstantBuffer->Release(); }
+	if (FloorTexture2D) { FloorTexture2D->Release(); }
+
+	if (LightConstantBuffer) { LightConstantBuffer->Release(); }
 
 	if (m_pVertexShader) { m_pVertexShader->Release(); }
 	if (m_pPixelShader) { m_pPixelShader->Release(); }
