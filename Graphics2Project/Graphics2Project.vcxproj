@@ -180,6 +180,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="Files\Box_Circuit.dds" />
+    <Image Include="Files\firite.dds" />
     <Image Include="Files\greendragon.dds" />
     <Image Include="Graphics2Project.ico" />
     <Image Include="small.ico" />

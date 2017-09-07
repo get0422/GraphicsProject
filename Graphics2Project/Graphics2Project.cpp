@@ -344,32 +344,32 @@ HRESULT Initialize() {
 	Floor();
 	
 	// Setting Onject
-	VertexIndexConstBuffers("Files/testpyramid.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
+	VertexIndexConstBuffers("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
 	
 	// Loading Indexed Geometry Textures
 	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTextureRV);
 	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &FloorTexture2D);
 
 	// Loading Object Textures 
-	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &PryamidTexture);
+	CreateDDSTextureFromFile(m_pDevice, L"files/firite.dds", NULL, &PryamidTexture);
 
 	/* Setting Lighting */
 	ZeroMemory(&Lights, sizeof(Lighting) * 3);
 
-	// Spot Light
-	Lights[2].Position  = XMFLOAT4(0.0f, 5.0f, 0.0f, 0.0f);
-	Lights[2].Color		= XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
-	Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-	Lights[2].Radius	= XMFLOAT4(10.0f, 1.0f, 10.0f, 0.0f);
+	//// Spot Light
+	//Lights[0].Position  = XMFLOAT4(0.0f, 5.0f, 0.0f, 0.0f);
+	//Lights[0].Color		= XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
+	//Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	//Lights[0].Radius	= XMFLOAT4(10.0f, 1.0f, 10.0f, 0.0f);
 
 	//// Point Light
 	//Lights[1].Position	= XMFLOAT4(-4.0f, 1.0f, 0.0f, 0.0f);
 	//Lights[1].Color		= XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
 	//Lights[1].Radius	= XMFLOAT4(1.0f, 2.0f, 0.0f, 0.0f);
 
-	//// Directional Lighting
-	//Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-	//Lights[2].Color		= XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+	// Directional Lighting
+	Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	Lights[2].Color		= XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
 
 	// Setting up the Light Buffer
 	D3D11_BUFFER_DESC lightbuffdesc;
@@ -415,9 +415,9 @@ HRESULT Initialize() {
 	// Initializing the world matrix
 	WorldMatrix   = XMMatrixIdentity();
 	PryamidMatrix = XMMatrixIdentity();
-	PryamidMatrix = XMMatrixTranslation(1, 0, 0);
-	PryamidMatrix = XMMatrixMultiply(PryamidMatrix, XMMatrixScaling(5.0f, 5.0f, 5.0f));
 	FloorMatrix   = XMMatrixIdentity();
+	FloorMatrix	  = XMMatrixTranslation(0, -0.5f, 0);
+	PryamidMatrix = XMMatrixTranslation(5, -0.5f, 15.0f);
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
@@ -495,6 +495,12 @@ bool Run() {
 	constantM.View						= XMMatrixTranspose(ViewMatrix);
 	constantM.Projection				= XMMatrixTranspose(ProjectionMatrix);
 	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, NULL, NULL, &constantM, NULL, NULL);
+	
+	ConstantMatrix constantFloor;
+	constantFloor.World = XMMatrixTranspose(FloorMatrix);
+	constantFloor.View = XMMatrixTranspose(ViewMatrix);
+	constantFloor.Projection = XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
 
 	ConstantMatrix constantPrymid;
 	constantPrymid.World = XMMatrixTranspose(PryamidMatrix);
@@ -502,28 +508,22 @@ bool Run() {
 	constantPrymid.Projection = XMMatrixTranspose(ProjectionMatrix);
 	m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, NULL, NULL, &constantPrymid, NULL, NULL);
 
-	ConstantMatrix constantFloor;
-	constantFloor.World = XMMatrixTranspose(FloorMatrix);
-	constantFloor.View = XMMatrixTranspose(ViewMatrix);
-	constantFloor.Projection = XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
-
-	Lighting constantLight[3];
-	// Spot Light
-	constantLight[2].Color		= Lights[2].Position;
-	constantLight[2].Direction  = Lights[2].Color;
-	constantLight[2].Position	= Lights[2].Direction;
-	constantLight[2].Radius		= Lights[2].Radius;
+	Lighting constantLight;
+	//// Spot Light
+	//constantLight[2].Color		= Lights[2].Position;
+	//constantLight[2].Direction  = Lights[2].Color;
+	//constantLight[2].Position	= Lights[2].Direction;
+	//constantLight[2].Radius		= Lights[2].Radius;
 	//// Point Light
 	//constantLight[1].Color		= Lights[1].Color;
 	//constantLight[1].Direction;
 	//constantLight[1].Position	= Lights[1].Position;
 	//constantLight[1].Radius		= Lights[1].Radius;
-	//// Directional Light
-	//constantLight[2].Color		= Lights[2].Color;
-	//constantLight[2].Direction	= Lights[2].Direction;
-	//constantLight[2].Position;
-	//constantLight[2].Radius;
+	// Directional Light
+	constantLight.Color		= Lights[2].Color;
+	constantLight.Direction	= Lights[2].Direction;
+	constantLight.Position;
+	constantLight.Radius;
 
 	// Updating the Light Buffer
 	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
@@ -849,7 +849,7 @@ void DrawFloor()
 	/* Setting Vertex Shader */
 	m_pDeviceContext->VSSetShader(m_pVertexShader, nullptr, NULL);
 	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(1, 1, &m_pConstantBuffer);
+	m_pDeviceContext->VSSetConstantBuffers(0, 1, &FloorConstantBuffer);
 
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, NULL);

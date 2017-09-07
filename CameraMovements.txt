@@ -1,0 +1,15 @@
+
+R = Reset View
+
+Q = Camera Zoom In
+E = Camera Zoom Out
+
+W = Camera movement Up
+S = Camera movement Down
+D = Camera movement Right
+A = Camera movement Left
+
+I = Camera rotate Up
+K = Camera rotate Down
+J = Camera rotate Left
+L = Camera rotate Right
