@@ -288,14 +288,14 @@ HRESULT Initialize() {
 	// Describing the SwapChain
 	DXGI_SWAP_CHAIN_DESC swapdesc;
 	ZeroMemory(&swapdesc, sizeof(DXGI_SWAP_CHAIN_DESC));
-	swapdesc.BufferCount = 1;
-	swapdesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapdesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapdesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-	swapdesc.OutputWindow = hWnd;
-	swapdesc.SampleDesc.Count = 1;
-	swapdesc.SampleDesc.Quality = NULL;
-	swapdesc.Windowed = true;
+	swapdesc.BufferCount		= 1;
+	swapdesc.BufferDesc.Format	= DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapdesc.BufferUsage		= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapdesc.Flags				= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	swapdesc.OutputWindow		= hWnd;
+	swapdesc.SampleDesc.Count	= 1;
+	swapdesc.SampleDesc.Quality	= NULL;
+	swapdesc.Windowed			= true;
 
 	D3D_FEATURE_LEVEL FeatureLevels[4] = { D3D_FEATURE_LEVEL_10_0,D3D_FEATURE_LEVEL_10_1,D3D_FEATURE_LEVEL_11_0,D3D_FEATURE_LEVEL_11_1 };
 
@@ -310,30 +310,30 @@ HRESULT Initialize() {
 	// Create depth stencil texture
 	D3D11_TEXTURE2D_DESC texturedesc;
 	ZeroMemory(&texturedesc, sizeof(texturedesc));
-	texturedesc.Width = width;
-	texturedesc.Height = height;
-	texturedesc.MipLevels = 1;
-	texturedesc.ArraySize = 1;
-	texturedesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	texturedesc.SampleDesc.Count = 1;
-	texturedesc.SampleDesc.Quality = NULL;
-	texturedesc.Usage = D3D11_USAGE_DEFAULT;
-	texturedesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	texturedesc.CPUAccessFlags = NULL;
-	texturedesc.MiscFlags = NULL;
+	texturedesc.Width				= width;
+	texturedesc.Height				= height;
+	texturedesc.MipLevels			= 1;
+	texturedesc.ArraySize			= 1;
+	texturedesc.Format				= DXGI_FORMAT_D24_UNORM_S8_UINT;
+	texturedesc.SampleDesc.Count	= 1;
+	texturedesc.SampleDesc.Quality	= NULL;
+	texturedesc.Usage				= D3D11_USAGE_DEFAULT;
+	texturedesc.BindFlags			= D3D11_BIND_DEPTH_STENCIL;
+	texturedesc.CPUAccessFlags		= NULL;
+	texturedesc.MiscFlags			= NULL;
 	m_pDevice->CreateTexture2D(&texturedesc, NULL, &m_pTexture2D);
 
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
 	ZeroMemory(&descDSV, sizeof(descDSV));
-	descDSV.Format = texturedesc.Format;
-	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	descDSV.Texture2D.MipSlice = NULL;
+	descDSV.Format				= texturedesc.Format;
+	descDSV.ViewDimension		= D3D11_DSV_DIMENSION_TEXTURE2D;
+	descDSV.Texture2D.MipSlice	= NULL;
 	m_pDevice->CreateDepthStencilView(m_pTexture2D, &descDSV, &m_pDepthStencil);
 
 	// Initializing the Viewport
-	m_ViewPort.Width = static_cast<float>(width);
-	m_ViewPort.Height = static_cast<float>(height);
+	m_ViewPort.Width	= static_cast<float>(width);
+	m_ViewPort.Height	= static_cast<float>(height);
 	m_ViewPort.MinDepth = 0.0f;
 	m_ViewPort.MaxDepth = 1.0f;
 	m_ViewPort.TopLeftX = 0;
@@ -354,22 +354,29 @@ HRESULT Initialize() {
 	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &PryamidTexture);
 
 	/* Setting Lighting */
+	ZeroMemory(&Lights, sizeof(Lighting) * 3);
 
-
-	// Point Light
-	Lights[1].Position	= XMFLOAT4(-4.0f, 1.0f, 0.0f, 0.0f);
-	Lights[1].Color		= XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-	Lights[1].Radius	= XMFLOAT4(1.0f, 2.0f, 0.0f, 0.0f);
-
-	// Directional Lighting
-	Lights[2].Color = XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+	// Spot Light
+	Lights[2].Position  = XMFLOAT4(0.0f, 5.0f, 0.0f, 0.0f);
+	Lights[2].Color		= XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
 	Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	Lights[2].Radius	= XMFLOAT4(10.0f, 1.0f, 10.0f, 0.0f);
 
+	//// Point Light
+	//Lights[1].Position	= XMFLOAT4(-4.0f, 1.0f, 0.0f, 0.0f);
+	//Lights[1].Color		= XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
+	//Lights[1].Radius	= XMFLOAT4(1.0f, 2.0f, 0.0f, 0.0f);
+
+	//// Directional Lighting
+	//Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	//Lights[2].Color		= XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+
+	// Setting up the Light Buffer
 	D3D11_BUFFER_DESC lightbuffdesc;
 	ZeroMemory(&lightbuffdesc, sizeof(D3D11_BUFFER_DESC));
-	lightbuffdesc.Usage = D3D11_USAGE_DEFAULT;
-	lightbuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	lightbuffdesc.ByteWidth = sizeof(Lighting);
+	lightbuffdesc.Usage		= D3D11_USAGE_DEFAULT;
+	lightbuffdesc.BindFlags	= D3D11_BIND_CONSTANT_BUFFER;
+	lightbuffdesc.ByteWidth	= sizeof(Lighting);
 	m_pDevice->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer);
 
 
@@ -377,13 +384,13 @@ HRESULT Initialize() {
 	// Creating the sample state
 	D3D11_SAMPLER_DESC sampDesc;
 	ZeroMemory(&sampDesc, sizeof(sampDesc));
-	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	sampDesc.MinLOD = 0;
-	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	sampDesc.Filter			= D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU		= D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV		= D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW		= D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc	= D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD			= 0;
+	sampDesc.MaxLOD			= D3D11_FLOAT32_MAX;
 	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
 
 
@@ -406,11 +413,11 @@ HRESULT Initialize() {
 	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
 
 	// Initializing the world matrix
-	WorldMatrix = XMMatrixIdentity();
+	WorldMatrix   = XMMatrixIdentity();
 	PryamidMatrix = XMMatrixIdentity();
 	PryamidMatrix = XMMatrixTranslation(1, 0, 0);
 	PryamidMatrix = XMMatrixMultiply(PryamidMatrix, XMMatrixScaling(5.0f, 5.0f, 5.0f));
-	FloorMatrix = XMMatrixIdentity();
+	FloorMatrix   = XMMatrixIdentity();
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
@@ -501,27 +508,28 @@ bool Run() {
 	constantFloor.Projection = XMMatrixTranspose(ProjectionMatrix);
 	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
 
-	Lighting constantDirectionalLight;
-	constantDirectionalLight.Color = Lights[2].Color;
-	constantDirectionalLight.Direction = Lights[2].Direction;
-	constantDirectionalLight.Position;
-	constantDirectionalLight.Radius;
-	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantDirectionalLight, NULL, NULL);
+	Lighting constantLight[3];
+	// Spot Light
+	constantLight[2].Color		= Lights[2].Position;
+	constantLight[2].Direction  = Lights[2].Color;
+	constantLight[2].Position	= Lights[2].Direction;
+	constantLight[2].Radius		= Lights[2].Radius;
+	//// Point Light
+	//constantLight[1].Color		= Lights[1].Color;
+	//constantLight[1].Direction;
+	//constantLight[1].Position	= Lights[1].Position;
+	//constantLight[1].Radius		= Lights[1].Radius;
+	//// Directional Light
+	//constantLight[2].Color		= Lights[2].Color;
+	//constantLight[2].Direction	= Lights[2].Direction;
+	//constantLight[2].Position;
+	//constantLight[2].Radius;
 
-	//Lighting constantPointLight;
-	//constantPointLight.Color = Lights[1].Color;
-	//constantPointLight.Direction;
-	//constantPointLight.Position = Lights[1].Position;
-	//constantPointLight.Radius = Lights[1].Radius;
-	//m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantPointLight, NULL, NULL);
-	//Lighting constantLight;
-	//constantLight.Color = Lights[0].Color;
-	//constantLight.Direction = Lights[0].Direction;
-	//constantLight.Position;
-	//constantLight.Radius;
-	//m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
+	// Updating the Light Buffer
+	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
 
 
+	// Drawing Objects
 	DrawFloor();
 	DrawCube();
 	DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);

@@ -15,15 +15,17 @@ struct OUTPUT_VERTEX
 
 struct Lighting
 {
-	float4 direction;
-	float4 color;
 	float4 position;
+	float4 color;
+	float4 direction;
 	float4 radius;
+	float padding;
+	float padding1;
 };
 
 cbuffer Lighting : register(b0)
 {
-	Lighting Dlight;
+	Lighting lights[3];
 }
 
 
@@ -36,19 +38,33 @@ float4 main(OUTPUT_VERTEX input) : SV_TARGET
 	// Ambient Light
 	float4 ambient = float4(0.25, 0.25, 0.25, 1);
 
-	// Directional light
-	float directionalLightRA = saturate(dot(normalize(-Dlight.direction), normalize(input.normalH)));
-	float4 directionalresult = directionalLightRA * Dlight.color * TextureColor;
+	// Spot Light
+	float4 spotLightDirection = normalize(lights[0].position - input.worldpos);
+	spotLightDirection.w = 0;
 
-	// Point Light // 
+
+	float surfaceRatio = saturate(dot(-spotLightDirection, lights[0].direction));
+	float spotfactor = (surfaceRatio > lights[0].radius.x) ? 1 : 0;
+	float spotLightRatio = saturate(dot(spotLightDirection, input.normalH));
+
+	float spotLightAttenuation = 1.0f - saturate(length(lights[0].position - input.worldpos) / lights[0].radius.z);
+	float spotLightCone = 1.0f - saturate((lights[0].radius.x - surfaceRatio) / (lights[0].radius.x - lights[0].radius.y));
+
+	float4 spotLightResult = spotfactor * spotLightRatio * lights[0].color * TextureColor * spotLightAttenuation * spotLightCone;
+
+
+	//// Point Light 
 	//float4 pointLightDirection = normalize(lights[1].position - input.worldpos);
 	//float pointLightratio = saturate(dot(pointLightDirection, input.normalH));
 	//float pointLightAttenuation = 1.0 - saturate(length(lights[1].position - input.worldpos) / 10);
 	//float4 pointLightResult = pointLightratio * lights[1].color * TextureColor * pointLightAttenuation;
 
+	// Directional light
+	//float directionalLightRA = saturate(dot(normalize(-lights[2].direction), normalize(input.normalH)));
+	//float4 directionalresult = directionalLightRA * lights[2].color * TextureColor;
 
-	//+ pointLightResult 
-	TextureColor = saturate(ambient + directionalresult);
+	 
+	TextureColor = saturate(ambient + spotLightResult /*+ pointLightResult + directionalresult*/);
 
 	return (TextureColor * tex.Sample(samp, input.uvH));
 }

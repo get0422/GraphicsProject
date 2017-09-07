@@ -58,9 +58,11 @@ struct ConstantMatrix
 
 struct Lighting
 {
-	XMFLOAT4 Direction;
-	XMFLOAT4 Color;
 	XMFLOAT4 Position;
+	XMFLOAT4 Color;
+	XMFLOAT4 Direction;
 	XMFLOAT4 Radius;
+	XMFLOAT2 padding;
+	XMFLOAT2 padding1;
 };
 #pragma endregion
