@@ -33,6 +33,8 @@ using namespace DirectX;
 
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
+#include "Trivial_GS.csh"
+#include "GS_VS.csh"
 #include "DDSTextureLoader.h"
 // TODO: reference additional headers your program requires here
 
@@ -46,23 +48,22 @@ struct SIMPLE_VERTEX {
 	XMFLOAT4					Color;
 	XMFLOAT2					uvs;
 	XMFLOAT4					normals;
+	XMFLOAT4					WorldPositon;
 };
 
 // Constant Buffer 1
 struct ConstantMatrix
 {
-	XMMATRIX					World;
+	XMMATRIX					ObjectMatrix;
 	XMMATRIX					View;
 	XMMATRIX					Projection;
 };
 
 struct Lighting
 {
-	XMFLOAT4 Position;
-	XMFLOAT4 Color;
 	XMFLOAT4 Direction;
+	XMFLOAT4 Color;
+	XMFLOAT4 Position;
 	XMFLOAT4 Radius;
-	XMFLOAT2 padding;
-	XMFLOAT2 padding1;
 };
 #pragma endregion

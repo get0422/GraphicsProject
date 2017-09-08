@@ -6,8 +6,8 @@
 #include "ObjLoader.h"
 
 #define MAX_LOADSTRING 100
-#define BACKBUFFER_WIDTH	500 // 729
-#define BACKBUFFER_HEIGHT	500 // 640
+#define BACKBUFFER_WIDTH	729
+#define BACKBUFFER_HEIGHT	640
 #define ColorCube			0
 #define TextureCube			1
 
@@ -37,7 +37,9 @@ ID3D11SamplerState*				m_pSamplerState			= nullptr;
 ID3D11ShaderResourceView*		m_pTextureRV			= nullptr;
 
 ID3D11VertexShader* 			m_pVertexShader			= nullptr;
+ID3D11VertexShader* 			m_pGeometryVertexShader = nullptr;
 ID3D11PixelShader*				m_pPixelShader			= nullptr;
+ID3D11GeometryShader*			m_pGeometryShader		= nullptr;
 
 //ID3D11Debug*					debug					= nullptr;
 
@@ -55,8 +57,11 @@ XMVECTOR Focus					= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR Up						= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR ResetEye = Eye;
 
+XMMATRIX						CubeMatrix;
+
+
 // Need for Loading Pryamid
-ObjLoader							Pryamid;
+ObjLoader						Pryamid;
 XMMATRIX						PryamidMatrix;
 ID3D11Buffer*					PryamidVertexBuffer		= nullptr;
 ID3D11Buffer*					PryamidIndexBuffer		= nullptr;
@@ -91,8 +96,9 @@ void Shutdown();
 bool Run();
 void DrawCube();
 void SetCube();
-void Floor();
+void SetFloor();
 void DrawFloor();
+void DrawPoint();
 void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
 void DrawObject(ObjLoader & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * worldbuffer, ID3D11ShaderResourceView * texture);
 
@@ -341,7 +347,7 @@ HRESULT Initialize() {
 
 	// Setting Indexed Geometry
 	SetCube();
-	Floor();
+	SetFloor();
 	
 	// Setting Onject
 	VertexIndexConstBuffers("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
@@ -351,25 +357,25 @@ HRESULT Initialize() {
 	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &FloorTexture2D);
 
 	// Loading Object Textures 
-	CreateDDSTextureFromFile(m_pDevice, L"files/firite.dds", NULL, &PryamidTexture);
+	CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);
 
 	/* Setting Lighting */
 	ZeroMemory(&Lights, sizeof(Lighting) * 3);
 
-	//// Spot Light
-	//Lights[0].Position  = XMFLOAT4(0.0f, 5.0f, 0.0f, 0.0f);
-	//Lights[0].Color		= XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
-	//Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-	//Lights[0].Radius	= XMFLOAT4(10.0f, 1.0f, 10.0f, 0.0f);
+	// Spot Light
+	Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	Lights[0].Color		= XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	Lights[0].Position  = XMFLOAT4(0.0f, 5.0f, 0.0f, 0.0f);
+	Lights[0].Radius	= XMFLOAT4(10.0f, 1.0f, 10.0f, 0.0f);
 
-	//// Point Light
-	//Lights[1].Position	= XMFLOAT4(-4.0f, 1.0f, 0.0f, 0.0f);
-	//Lights[1].Color		= XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-	//Lights[1].Radius	= XMFLOAT4(1.0f, 2.0f, 0.0f, 0.0f);
+	// Point Light
+	Lights[1].Position	= XMFLOAT4(-4.0f, 1.0f, 0.0f, 0.0f);
+	Lights[1].Color		= XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
+	Lights[1].Radius	= XMFLOAT4(1.0f, 2.0f, 0.0f, 0.0f);
 
 	// Directional Lighting
-	Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-	Lights[2].Color		= XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+	Lights[2].Direction = XMFLOAT4(1.0f, 0.0f, 1.0f, 0.0f);
+	Lights[2].Color		= XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f);
 
 	// Setting up the Light Buffer
 	D3D11_BUFFER_DESC lightbuffdesc;
@@ -397,6 +403,9 @@ HRESULT Initialize() {
 	// Decleraing Shaders
 	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
 	m_pDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &m_pPixelShader);
+	m_pDevice->CreateVertexShader(GS_VS, sizeof(GS_VS), NULL, &m_pGeometryVertexShader);
+	m_pDevice->CreateGeometryShader(Trivial_GS, sizeof(Trivial_GS), NULL, &m_pGeometryShader);
+
 
 	// Defining the Input Layout
 	D3D11_INPUT_ELEMENT_DESC layout[] =
@@ -413,11 +422,15 @@ HRESULT Initialize() {
 	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
 
 	// Initializing the world matrix
-	WorldMatrix   = XMMatrixIdentity();
-	PryamidMatrix = XMMatrixIdentity();
-	FloorMatrix   = XMMatrixIdentity();
-	FloorMatrix	  = XMMatrixTranslation(0, -0.5f, 0);
-	PryamidMatrix = XMMatrixTranslation(5, -0.5f, 15.0f);
+	WorldMatrix		= XMMatrixIdentity();
+
+	CubeMatrix		= XMMatrixIdentity();
+	
+	FloorMatrix		= XMMatrixIdentity();
+	FloorMatrix		= XMMatrixTranslation(0, -0.5f, 0);
+
+	PryamidMatrix	= XMMatrixIdentity();
+	PryamidMatrix	= XMMatrixTranslation(5, -0.5f, 15.0f);
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
@@ -443,29 +456,38 @@ bool Run() {
 		timeStart = timeCur;
 	t = (timeCur - timeStart) / 1000.0f;
 
+	#pragma region For Fun
+	if (GetAsyncKeyState('1')) { CreateDDSTextureFromFile(m_pDevice, L"files/firite.dds", NULL, &PryamidTexture); }
+	if (GetAsyncKeyState('2')) { CreateDDSTextureFromFile(m_pDevice, L"files/lium.dds", NULL, &PryamidTexture);	  }
+	if (GetAsyncKeyState('3')) { CreateDDSTextureFromFile(m_pDevice, L"files/rarium.dds", NULL, &PryamidTexture); }
+	if (GetAsyncKeyState('4')) { CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);  }
+	#pragma endregion
+
 	// ViewMatrix/ViewPort Movement/Rotation
 	#pragma region Camera Movement
 	if (GetAsyncKeyState('R')) { ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); }
+	#if 1
 	// ViewPort/Camera Zoom In
-	if (GetAsyncKeyState('Q')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, -0.001f)); }
+	if (GetAsyncKeyState('Q')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, -0.01f)); }
 	// ViewPort/Camera Zoom Out
-	if (GetAsyncKeyState('E')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, 0.001f)); }
+	if (GetAsyncKeyState('E')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, 0.01f)); }
+	#endif
 	// ViewPort/Camera movement Up
-	if (GetAsyncKeyState('W')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, -0.001f, 0)); }
+	if (GetAsyncKeyState('W')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, -0.01f, 0)); }
 	// ViewPort/Camera movement Down
-	if (GetAsyncKeyState('S')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0.001f, 0)); }
+	if (GetAsyncKeyState('S')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0.01f, 0)); }
 	// ViewPort/Camera movement Right
-	if (GetAsyncKeyState('D')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(-0.001f, 0, 0)); }
+	if (GetAsyncKeyState('D')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(-0.01f, 0, 0)); }
 	// ViewPort/Camera movement Left
-	if (GetAsyncKeyState('A')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0.001f, 0, 0)); }
+	if (GetAsyncKeyState('A')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0.01f, 0, 0)); }
 	// ViewPort/Camera rotate Up
-	if (GetAsyncKeyState('I')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(0.0001)); }
+	if (GetAsyncKeyState('I')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(0.001)); }
 	// ViewPort/Camera rotate Down
-	if (GetAsyncKeyState('K')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(-0.0001)); }
+	if (GetAsyncKeyState('K')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(-0.001)); }
 	// ViewPort/Camera rotate Left
-	if (GetAsyncKeyState('J')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(0.0001)); }
+	if (GetAsyncKeyState('J')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(0.001)); }
 	// ViewPort/Camera rotate Right
-	if (GetAsyncKeyState('L')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(-0.0001)); }
+	if (GetAsyncKeyState('L')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(-0.001)); }
 	#pragma endregion
 
 	// Setting Target View
@@ -481,7 +503,7 @@ bool Run() {
 	m_pDeviceContext->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer);
 
 	// Rotating Cube
-	WorldMatrix = XMMatrixRotationY(t);
+	CubeMatrix = XMMatrixRotationY(t);
 
 	// Clearing Back Buffer
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
@@ -491,39 +513,39 @@ bool Run() {
 
 	// Update variables
 	ConstantMatrix constantM;
-	constantM.World						= XMMatrixTranspose(WorldMatrix);
+	constantM.ObjectMatrix				= XMMatrixTranspose(CubeMatrix);
 	constantM.View						= XMMatrixTranspose(ViewMatrix);
 	constantM.Projection				= XMMatrixTranspose(ProjectionMatrix);
 	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, NULL, NULL, &constantM, NULL, NULL);
-	
-	ConstantMatrix constantFloor;
-	constantFloor.World = XMMatrixTranspose(FloorMatrix);
-	constantFloor.View = XMMatrixTranspose(ViewMatrix);
-	constantFloor.Projection = XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
 
 	ConstantMatrix constantPrymid;
-	constantPrymid.World = XMMatrixTranspose(PryamidMatrix);
-	constantPrymid.View = XMMatrixTranspose(ViewMatrix);
-	constantPrymid.Projection = XMMatrixTranspose(ProjectionMatrix);
+	constantPrymid.ObjectMatrix			= XMMatrixTranspose(PryamidMatrix);
+	constantPrymid.View					= XMMatrixTranspose(ViewMatrix);
+	constantPrymid.Projection			= XMMatrixTranspose(ProjectionMatrix);
 	m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, NULL, NULL, &constantPrymid, NULL, NULL);
 
-	Lighting constantLight;
-	//// Spot Light
-	//constantLight[2].Color		= Lights[2].Position;
-	//constantLight[2].Direction  = Lights[2].Color;
-	//constantLight[2].Position	= Lights[2].Direction;
-	//constantLight[2].Radius		= Lights[2].Radius;
-	//// Point Light
-	//constantLight[1].Color		= Lights[1].Color;
-	//constantLight[1].Direction;
-	//constantLight[1].Position	= Lights[1].Position;
-	//constantLight[1].Radius		= Lights[1].Radius;
+	ConstantMatrix constantFloor;
+	constantFloor.ObjectMatrix			= XMMatrixTranspose(FloorMatrix);
+	constantFloor.View					= XMMatrixTranspose(ViewMatrix);
+	constantFloor.Projection			= XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
+
+	Lighting constantLight[3];
+	// Spot Light
+	constantLight[0].Color		= Lights[0].Color;
+	constantLight[0].Direction  = Lights[0].Direction;
+	constantLight[0].Position	= Lights[0].Position;
+	constantLight[0].Radius		= Lights[0].Radius;
+	// Point Light
+	constantLight[1].Color		= Lights[1].Color;
+	constantLight[1].Direction  = Lights[1].Direction;
+	constantLight[1].Position	= Lights[1].Position;
+	constantLight[1].Radius		= Lights[1].Radius;
 	// Directional Light
-	constantLight.Color		= Lights[2].Color;
-	constantLight.Direction	= Lights[2].Direction;
-	constantLight.Position;
-	constantLight.Radius;
+	constantLight[2].Color		= Lights[2].Color;
+	constantLight[2].Direction	= Lights[2].Direction;
+	constantLight[2].Position	= Lights[2].Position;
+	constantLight[2].Radius		= Lights[2].Radius;
 
 	// Updating the Light Buffer
 	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
@@ -531,6 +553,7 @@ bool Run() {
 
 	// Drawing Objects
 	DrawFloor();
+	DrawPoint();
 	DrawCube();
 	DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);
 
@@ -560,9 +583,9 @@ void Shutdown() {
 	if (m_pSamplerState) { m_pSamplerState->Release(); }
 	if (m_pTextureRV) { m_pTextureRV->Release(); }
 
-	if(PryamidVertexBuffer) { PryamidVertexBuffer->Release(); }
-	if(PryamidIndexBuffer) { PryamidIndexBuffer->Release(); }
-	if(PryamidConstantBuffer) { PryamidConstantBuffer->Release(); }
+	if (PryamidVertexBuffer) { PryamidVertexBuffer->Release(); }
+	if (PryamidIndexBuffer) { PryamidIndexBuffer->Release(); }
+	if (PryamidConstantBuffer) { PryamidConstantBuffer->Release(); }
 	if (PryamidTexture) { PryamidTexture->Release(); }
 
 	if (FloorVertexBuffer) { FloorVertexBuffer->Release(); }
@@ -574,6 +597,9 @@ void Shutdown() {
 
 	if (m_pVertexShader) { m_pVertexShader->Release(); }
 	if (m_pPixelShader) { m_pPixelShader->Release(); }
+	if (m_pGeometryVertexShader) { m_pGeometryVertexShader->Release(); }
+	if (m_pGeometryShader) { m_pGeometryShader->Release(); }
+
 }
 
 
@@ -604,12 +630,12 @@ void SetCube() {
 		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
 		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
 		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-
+////////////////
 		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
 		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
 		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
 		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-
+////////////////
 		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
 		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
 		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
@@ -703,7 +729,7 @@ void SetCube() {
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
 }
 
-void Floor()
+void SetFloor()
 {
 	// Creating Floor Vertex
 	SIMPLE_VERTEX Vertex[] = {
@@ -784,14 +810,12 @@ void VertexIndexConstBuffers(const char * fileName, ObjLoader & model, ID3D11Buf
 	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &vertBuffer);
 
 	// Initializing/Creating Index Buffer
-	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
 	objVertbuffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	objVertbuffdesc.ByteWidth = sizeof(DWORD32) * objIcount;
 	objsubResource.pSysMem = Indexes;
 	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &indexBuffer);
 
 	// Initializing/Creating Constant Buffer
-	objVertbuffdesc.Usage = D3D11_USAGE_DEFAULT;
 	objVertbuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	objVertbuffdesc.ByteWidth = sizeof(ConstantMatrix);
 	m_pDevice->CreateBuffer(&objVertbuffdesc, NULL, &constantBuffer);
@@ -827,6 +851,8 @@ void DrawCube() {
 	// Setting Texture Resource
 	m_pDeviceContext->PSSetShaderResources(NULL, 1, &m_pTextureRV);
 
+	//m_pDeviceContext->GSSetShader(m_pGeometryShader, NULL, NULL);
+
 	// Drawing Indexed Cube
 	m_pDeviceContext->DrawIndexed(36, 0, 0);
 
@@ -834,7 +860,7 @@ void DrawCube() {
 
 void DrawFloor()
 {
-	/* Renders the Triangles for the Cube */
+	/* Renders the Triangles for the Floor */
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
@@ -849,7 +875,7 @@ void DrawFloor()
 	/* Setting Vertex Shader */
 	m_pDeviceContext->VSSetShader(m_pVertexShader, nullptr, NULL);
 	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(0, 1, &FloorConstantBuffer);
+	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &FloorConstantBuffer);
 
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, NULL);
@@ -858,6 +884,41 @@ void DrawFloor()
 
 	// Drawing Indexed Quad
 	m_pDeviceContext->DrawIndexed(6, 0, 0);
+}
+
+void DrawPoint() {
+	/* Renders the Geometry for the Floor */
+	unsigned int	strides = sizeof(SIMPLE_VERTEX);
+	unsigned int	offsets = 0;
+	// Setting VertexBuffer
+	m_pDeviceContext->IASetVertexBuffers(0, 1, &FloorVertexBuffer, &strides, &offsets);
+	// Setting Input Layout
+	m_pDeviceContext->IASetInputLayout(m_pInput);
+	// Setting Index Buffer
+	m_pDeviceContext->IASetIndexBuffer(FloorIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	// Setting Topology
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+	/* Setting Vertex Shader */
+	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
+	// Setting Vertex Constant Buffer
+	m_pDeviceContext->VSSetConstantBuffers(0, 1, &FloorConstantBuffer);
+
+	/* Setting Pixel Shader */
+	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
+	// Setting Texture Resource
+	m_pDeviceContext->PSSetShaderResources(0, 1, &FloorTexture2D);
+	
+	/* Setting Geometry Shader */
+	m_pDeviceContext->GSSetShader(m_pGeometryShader, NULL, NULL);
+	// Setting Geometry Constant Buffer
+	m_pDeviceContext->GSSetConstantBuffers(0, 1, &FloorConstantBuffer);
+	
+	// Drawing Indexed Quad
+	m_pDeviceContext->Draw(1, 0);
+
+	/* Nulling the Geometry Shader */
+	m_pDeviceContext->GSSetShader(NULL, NULL, NULL);
 }
 
 void DrawObject(ObjLoader & model, ID3D11Buffer * vertexBuffer, ID3D11Buffer * indexBuffer, ID3D11Buffer * constantBuffer, ID3D11ShaderResourceView * texture)

@@ -27,8 +27,8 @@ OUTPUT_VERTEX main(INPUT_VERTEX input)
 	OUTPUT_VERTEX output = (OUTPUT_VERTEX)0;
 	float4 localH = float4(input.coordinate.xyz, 1);
 	localH = mul(localH, WorldMatrix);
+	output.worldpos = localH;
 
-	output.projectedCoordinate = localH;
 	localH = mul(localH, ViewMatrix);
 	localH = mul(localH, ProjectionMatrix);
 

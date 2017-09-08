@@ -66,10 +66,21 @@
     <Image Include="Files\firite.dds">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="Files\icium.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Files\lium.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Files\rarium.dds">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Files\Trivial_PS.hlsl" />
     <FxCompile Include="Files\Trivial_VS.hlsl" />
+    <FxCompile Include="Trivial_GS.hlsl" />
+    <FxCompile Include="GS_VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />
