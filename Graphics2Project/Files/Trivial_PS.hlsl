@@ -50,8 +50,8 @@ float4 main(OUTPUT_VERTEX input) : SV_TARGET
 
 	// Point Light 
 	float  pointLightratio = saturate(dot(normalize(lights[1].position - input.worldpos), input.normalH));
-	float  pointLightAttenuation = 1.0 - saturate(length(lights[1].position - input.worldpos) / 4);
-	float4 pointLightResult = pointLightratio * lights[1].color * TextureColor * pointLightAttenuation;
+	float  pointLightAttenuation = 1.0 - saturate(length(lights[1].position - input.worldpos) / lights[1].radius);
+	float4 pointLightResult = pointLightratio * lights[1].color * pointLightAttenuation * (pointLightAttenuation * pointLightAttenuation) * TextureColor;
 
 	// Directional light
 	float directionalLightRA = saturate(dot(normalize(-lights[2].direction), normalize(input.normalH)));

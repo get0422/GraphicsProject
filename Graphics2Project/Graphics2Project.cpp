@@ -75,6 +75,13 @@ ID3D11Buffer*					FloorIndexBuffer		= nullptr;
 ID3D11Buffer*					FloorConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		FloorTexture2D			= nullptr;
 
+// Need For Geometry
+XMMATRIX						GeometryMatrix;
+ID3D11Buffer*					GeometryVertexBuffer	= nullptr;
+ID3D11Buffer*					GeometryIndexBuffer		= nullptr;
+ID3D11Buffer*					GeometryConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		GeometryTexture2D		= nullptr;
+
 // Need For Lighting
 Lighting Lights[3];
 XMMATRIX						LightMatrix;
@@ -96,7 +103,7 @@ void Shutdown();
 bool Run();
 void DrawCube();
 void SetCube();
-void SetFloor();
+void SetFloorAndGeometry();
 void DrawFloor();
 void DrawPoint();
 void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
@@ -347,14 +354,15 @@ HRESULT Initialize() {
 
 	// Setting Indexed Geometry
 	SetCube();
-	SetFloor();
+	SetFloorAndGeometry();
 	
 	// Setting Onject
 	VertexIndexConstBuffers("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
 	
 	// Loading Indexed Geometry Textures
 	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTextureRV);
-	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &FloorTexture2D);
+	CreateDDSTextureFromFile(m_pDevice, L"files/bownCartoonGround_seamless.dds", NULL, &FloorTexture2D);
+	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &GeometryTexture2D);
 
 	// Loading Object Textures 
 	CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);
@@ -363,26 +371,26 @@ HRESULT Initialize() {
 	ZeroMemory(&Lights, sizeof(Lighting) * 3);
 
 	// Spot Light
-	Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-	Lights[0].Color		= XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	Lights[0].Position  = XMFLOAT4(0.0f, 5.0f, 0.0f, 0.0f);
-	Lights[0].Radius	= XMFLOAT4(10.0f, 1.0f, 10.0f, 0.0f);
+	Lights[0].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+	Lights[0].Color		= XMFLOAT4(0.0f, 0.0f, 255.0f, 1.0f);
+	Lights[0].Position  = XMFLOAT4(0.0f, 7.0f, 0.0f, 0.0f);
+	Lights[0].Radius	= XMFLOAT4(0.923f, 0.707f, 10.0f, 0.0f);
 
 	// Point Light
-	Lights[1].Position	= XMFLOAT4(-4.0f, 1.0f, 0.0f, 0.0f);
-	Lights[1].Color		= XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-	Lights[1].Radius	= XMFLOAT4(1.0f, 2.0f, 0.0f, 0.0f);
+	Lights[1].Position	= XMFLOAT4(6.0f, 1.0f, 0.0f, 0.0f);
+	Lights[1].Color		= XMFLOAT4(255.0f, 0.0f, 255.0f, 1.0f);
+	Lights[1].Radius	= XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
 
 	// Directional Lighting
-	Lights[2].Direction = XMFLOAT4(1.0f, 0.0f, 1.0f, 0.0f);
-	Lights[2].Color		= XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f);
+	Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	Lights[2].Color		= XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Setting up the Light Buffer
 	D3D11_BUFFER_DESC lightbuffdesc;
 	ZeroMemory(&lightbuffdesc, sizeof(D3D11_BUFFER_DESC));
 	lightbuffdesc.Usage		= D3D11_USAGE_DEFAULT;
 	lightbuffdesc.BindFlags	= D3D11_BIND_CONSTANT_BUFFER;
-	lightbuffdesc.ByteWidth	= sizeof(Lighting);
+	lightbuffdesc.ByteWidth	= sizeof(Lighting) * 3;
 	m_pDevice->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer);
 
 
@@ -432,6 +440,8 @@ HRESULT Initialize() {
 	PryamidMatrix	= XMMatrixIdentity();
 	PryamidMatrix	= XMMatrixTranslation(5, -0.5f, 15.0f);
 
+	GeometryMatrix = XMMatrixIdentity();
+
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 
@@ -457,10 +467,12 @@ bool Run() {
 	t = (timeCur - timeStart) / 1000.0f;
 
 	#pragma region For Fun
-	if (GetAsyncKeyState('1')) { CreateDDSTextureFromFile(m_pDevice, L"files/firite.dds", NULL, &PryamidTexture); }
-	if (GetAsyncKeyState('2')) { CreateDDSTextureFromFile(m_pDevice, L"files/lium.dds", NULL, &PryamidTexture);	  }
-	if (GetAsyncKeyState('3')) { CreateDDSTextureFromFile(m_pDevice, L"files/rarium.dds", NULL, &PryamidTexture); }
-	if (GetAsyncKeyState('4')) { CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);  }
+	if (GetAsyncKeyState('1')) { Lights[0].Radius.x += 0.0001; Lights[1].Radius.y += 0.0001; Lights[1].Radius.z += 0.0001; }
+	if (GetAsyncKeyState('2')) { Lights[0].Radius.x -= 0.0001; Lights[1].Radius.y -= 0.0001; Lights[1].Radius.z -= 0.0001; }
+
+
+	if (GetAsyncKeyState('8')) { Lights[1].Radius.x += 0.005; }
+	if (GetAsyncKeyState('9')) { Lights[1].Radius.x -= 0.005; }
 	#pragma endregion
 
 	// ViewMatrix/ViewPort Movement/Rotation
@@ -530,6 +542,13 @@ bool Run() {
 	constantFloor.Projection			= XMMatrixTranspose(ProjectionMatrix);
 	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
 
+	ConstantMatrix constantGeometry;
+	constantGeometry.ObjectMatrix = XMMatrixTranspose(GeometryMatrix);
+	constantGeometry.View = XMMatrixTranspose(ViewMatrix);
+	constantGeometry.Projection = XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(GeometryConstantBuffer, NULL, NULL, &constantGeometry, NULL, NULL);
+
+
 	Lighting constantLight[3];
 	// Spot Light
 	constantLight[0].Color		= Lights[0].Color;
@@ -538,14 +557,11 @@ bool Run() {
 	constantLight[0].Radius		= Lights[0].Radius;
 	// Point Light
 	constantLight[1].Color		= Lights[1].Color;
-	constantLight[1].Direction  = Lights[1].Direction;
 	constantLight[1].Position	= Lights[1].Position;
 	constantLight[1].Radius		= Lights[1].Radius;
 	// Directional Light
 	constantLight[2].Color		= Lights[2].Color;
 	constantLight[2].Direction	= Lights[2].Direction;
-	constantLight[2].Position	= Lights[2].Position;
-	constantLight[2].Radius		= Lights[2].Radius;
 
 	// Updating the Light Buffer
 	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
@@ -729,7 +745,7 @@ void SetCube() {
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
 }
 
-void SetFloor()
+void SetFloorAndGeometry()
 {
 	// Creating Floor Vertex
 	SIMPLE_VERTEX Vertex[] = {
@@ -753,6 +769,7 @@ void SetFloor()
 
 	// Creating Vertex Buffer
 	m_pDevice->CreateBuffer(&buffdesc, &data, &FloorVertexBuffer);
+	m_pDevice->CreateBuffer(&buffdesc, &data, &GeometryVertexBuffer);
 
 	// Creating Floor Index
 	DWORD32 Indexes[] = {
@@ -766,12 +783,14 @@ void SetFloor()
 	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
 	data.pSysMem = Indexes;
 	m_pDevice->CreateBuffer(&buffdesc, &data, &FloorIndexBuffer);
+	m_pDevice->CreateBuffer(&buffdesc, &data, &GeometryIndexBuffer);
 
 	// Initializing/Creating Constant Buffer
 	buffdesc.Usage = D3D11_USAGE_DEFAULT;
 	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	buffdesc.ByteWidth = sizeof(ConstantMatrix);
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &FloorConstantBuffer);
+	m_pDevice->CreateBuffer(&buffdesc, nullptr, &GeometryConstantBuffer);
 
 }
 
@@ -891,28 +910,28 @@ void DrawPoint() {
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(0, 1, &FloorVertexBuffer, &strides, &offsets);
+	m_pDeviceContext->IASetVertexBuffers(0, 1, &GeometryVertexBuffer, &strides, &offsets);
 	// Setting Input Layout
 	m_pDeviceContext->IASetInputLayout(m_pInput);
 	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(FloorIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	m_pDeviceContext->IASetIndexBuffer(GeometryIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
 	// Setting Topology
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 
 	/* Setting Vertex Shader */
 	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
 	// Setting Vertex Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(0, 1, &FloorConstantBuffer);
+	m_pDeviceContext->VSSetConstantBuffers(0, 1, &GeometryConstantBuffer);
 
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(0, 1, &FloorTexture2D);
+	m_pDeviceContext->PSSetShaderResources(0, 1, &GeometryTexture2D);
 	
 	/* Setting Geometry Shader */
 	m_pDeviceContext->GSSetShader(m_pGeometryShader, NULL, NULL);
 	// Setting Geometry Constant Buffer
-	m_pDeviceContext->GSSetConstantBuffers(0, 1, &FloorConstantBuffer);
+	m_pDeviceContext->GSSetConstantBuffers(0, 1, &GeometryConstantBuffer);
 	
 	// Drawing Indexed Quad
 	m_pDeviceContext->Draw(1, 0);
