@@ -11,6 +11,7 @@
 #define ColorCube			0
 #define TextureCube			1
 
+
 //----------------------------------------------------------------------------------------------------------
 // Global Variables:
 //----------------------------------------------------------------------------------------------------------
@@ -38,6 +39,8 @@ ID3D11ShaderResourceView*		m_pTextureRV			= nullptr;
 
 ID3D11VertexShader* 			m_pVertexShader			= nullptr;
 ID3D11VertexShader* 			m_pGeometryVertexShader = nullptr;
+ID3D11VertexShader* 			m_pSkyBoxVertexShader	= nullptr;
+ID3D11PixelShader*				m_pSkyBoxPixelShader	= nullptr;
 ID3D11PixelShader*				m_pPixelShader			= nullptr;
 ID3D11GeometryShader*			m_pGeometryShader		= nullptr;
 
@@ -85,8 +88,20 @@ ID3D11ShaderResourceView*		GeometryTexture2D		= nullptr;
 // Need For Lighting
 Lighting Lights[3];
 XMMATRIX						LightMatrix;
-ID3D11Buffer*					LightConstantBuffer	= nullptr;
+ID3D11Buffer*					LightConstantBuffer		= nullptr;
 
+// Need For Skybox
+ID3D11Buffer*					SkyBoxVertexBuffer		= nullptr;
+ID3D11Buffer*					SkyBoxIndexBuffer		= nullptr;
+ID3D11Buffer*					SkyBoxConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		SkyBoxTexture2D			= nullptr;
+ID3D11InputLayout*				SkyBoxInputLayout		= nullptr;
+
+int DirectionCount = 0;
+int SpotCount = 0;
+float Zoom = 2;
+float NearPlane = 0.01;
+float FarPlane = 200;
 #pragma endregion
 
 
@@ -101,11 +116,13 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 HRESULT Initialize();
 void Shutdown();
 bool Run();
-void DrawCube();
 void SetCube();
 void SetFloorAndGeometry();
+void SetSkyBox();
+void DrawCube();
 void DrawFloor();
-void DrawPoint();
+void DrawGeometry();
+void DrawSkyBox();
 void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
 void DrawObject(ObjLoader & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * worldbuffer, ID3D11ShaderResourceView * texture);
 
@@ -355,7 +372,8 @@ HRESULT Initialize() {
 	// Setting Indexed Geometry
 	SetCube();
 	SetFloorAndGeometry();
-	
+	SetSkyBox();
+
 	// Setting Onject
 	VertexIndexConstBuffers("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
 	
@@ -366,6 +384,9 @@ HRESULT Initialize() {
 
 	// Loading Object Textures 
 	CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);
+
+	// Loading SkyBox Texture
+	CreateDDSTextureFromFile(m_pDevice, L"files/SKYBOX.dds", NULL, &SkyBoxTexture2D);
 
 	/* Setting Lighting */
 	ZeroMemory(&Lights, sizeof(Lighting) * 3);
@@ -411,8 +432,11 @@ HRESULT Initialize() {
 	// Decleraing Shaders
 	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
 	m_pDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &m_pPixelShader);
-	m_pDevice->CreateVertexShader(GS_VS, sizeof(GS_VS), NULL, &m_pGeometryVertexShader);
 	m_pDevice->CreateGeometryShader(Trivial_GS, sizeof(Trivial_GS), NULL, &m_pGeometryShader);
+	m_pDevice->CreateVertexShader(GS_VS, sizeof(GS_VS), NULL, &m_pGeometryVertexShader);
+	m_pDevice->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &m_pSkyBoxPixelShader);
+	m_pDevice->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &m_pSkyBoxVertexShader);
+
 
 
 	// Defining the Input Layout
@@ -428,6 +452,15 @@ HRESULT Initialize() {
 
 	// Creating the Input Layout
 	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
+	
+	D3D11_INPUT_ELEMENT_DESC vskyLayout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	// Number of Elements in the Layout
+	UINT numberOfElements2 = ARRAYSIZE(vskyLayout);
+
+	m_pDevice->CreateInputLayout(vskyLayout, numberOfElements2, SkyBox_VS, sizeof(SkyBox_VS), &SkyBoxInputLayout);
 
 	// Initializing the world matrix
 	WorldMatrix		= XMMatrixIdentity();
@@ -446,7 +479,7 @@ HRESULT Initialize() {
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 
 	// Initializing the projection matrix
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / static_cast<float>(height), 0.01f, 200.0f);
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI/Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
 
 
 	return S_OK;
@@ -466,13 +499,86 @@ bool Run() {
 		timeStart = timeCur;
 	t = (timeCur - timeStart) / 1000.0f;
 
-	#pragma region For Fun
-	if (GetAsyncKeyState('1')) { Lights[0].Radius.x += 0.0001; Lights[1].Radius.y += 0.0001; Lights[1].Radius.z += 0.0001; }
-	if (GetAsyncKeyState('2')) { Lights[0].Radius.x -= 0.0001; Lights[1].Radius.y -= 0.0001; Lights[1].Radius.z -= 0.0001; }
+	#pragma region Window Clipping
+	// Near Plane
+	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1) { NearPlane += 0.01f; }
+	if (GetAsyncKeyState(VK_NUMPAD2) & 0x1) { if (FarPlane > 0.02) { NearPlane -= 0.01f; } }
+	// Fare Plane
+	if (GetAsyncKeyState(VK_NUMPAD4) & 0x1) { if (FarPlane > 1) { FarPlane -= 1.0f; } }
+	if (GetAsyncKeyState(VK_NUMPAD5) & 0x1) { FarPlane += 1.0f; }
+	// Zoom
+	if (GetAsyncKeyState(VK_NUMPAD7) & 0x1) { Zoom += 0.05;}
+	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1) { if (Zoom > 1.1) { Zoom -= 0.05; } }
+
+	// Initializing the projection matrix
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI/Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	#pragma endregion
 
 
-	if (GetAsyncKeyState('8')) { Lights[1].Radius.x += 0.005; }
-	if (GetAsyncKeyState('9')) { Lights[1].Radius.x -= 0.005; }
+	#pragma region Light Movement
+	if (GetAsyncKeyState('1') & 0x1) {
+		if (DirectionCount == 0) {
+			Lights[2].Direction = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 1) {
+			Lights[2].Direction = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 2) {
+			Lights[2].Direction = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 3) {
+			Lights[2].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 4) {
+			Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+			DirectionCount = 0;
+		}
+	}
+	if (GetAsyncKeyState('2') & 0x1) {
+		if (SpotCount == 0) {
+			Lights[0].Direction = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 1) {
+			Lights[0].Direction = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 2) {
+			Lights[0].Direction = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 3) {
+			Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 4) {
+			Lights[0].Direction = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 5) {
+			Lights[0].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+			SpotCount = 0;
+		}
+	}
+
+	if (GetAsyncKeyState('G')) { Lights[0].Position.y -= 0.005; }
+	if (GetAsyncKeyState('T')) { Lights[0].Position.y += 0.005; }
+	if (GetAsyncKeyState('3')) { Lights[0].Position.x -= 0.005; }
+	if (GetAsyncKeyState('4')) { Lights[0].Position.x += 0.005; }
+	if (GetAsyncKeyState('5')) { Lights[0].Position.z -= 0.005; }
+	if (GetAsyncKeyState('6')) { Lights[0].Position.z += 0.005; }
+
+
+	if (GetAsyncKeyState('H')) { Lights[1].Position.y -= 0.005; }
+	if (GetAsyncKeyState('Y')) { Lights[1].Position.y += 0.005; }
+	if (GetAsyncKeyState('7')) { Lights[1].Position.x -= 0.005; }
+	if (GetAsyncKeyState('8')) { Lights[1].Position.x += 0.005; }
+	if (GetAsyncKeyState('9')) { Lights[1].Position.z -= 0.005; }
+	if (GetAsyncKeyState('0')) { Lights[1].Position.z += 0.005; }
 	#pragma endregion
 
 	// ViewMatrix/ViewPort Movement/Rotation
@@ -548,6 +654,11 @@ bool Run() {
 	constantGeometry.Projection = XMMatrixTranspose(ProjectionMatrix);
 	m_pDeviceContext->UpdateSubresource(GeometryConstantBuffer, NULL, NULL, &constantGeometry, NULL, NULL);
 
+	ConstantMatrix constantSkyBox;
+	constantSkyBox.ObjectMatrix = XMMatrixTranspose(GeometryMatrix);
+	constantSkyBox.View = XMMatrixTranspose(ViewMatrix);
+	constantSkyBox.Projection = XMMatrixTranspose(ProjectionMatrix);
+	m_pDeviceContext->UpdateSubresource(SkyBoxConstantBuffer, NULL, NULL, &constantSkyBox, NULL, NULL);
 
 	Lighting constantLight[3];
 	// Spot Light
@@ -568,8 +679,9 @@ bool Run() {
 
 
 	// Drawing Objects
+	DrawSkyBox();
 	DrawFloor();
-	DrawPoint();
+	DrawGeometry();
 	DrawCube();
 	DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);
 
@@ -610,6 +722,19 @@ void Shutdown() {
 	if (FloorTexture2D) { FloorTexture2D->Release(); }
 
 	if (LightConstantBuffer) { LightConstantBuffer->Release(); }
+	
+	if (GeometryVertexBuffer) { GeometryVertexBuffer->Release(); }
+	if (GeometryIndexBuffer) { GeometryIndexBuffer->Release(); }
+	if (GeometryConstantBuffer) { GeometryConstantBuffer->Release(); }
+	if (GeometryTexture2D) { GeometryTexture2D->Release(); }
+
+	if (m_pSkyBoxVertexShader) { m_pSkyBoxVertexShader->Release(); }
+	if (m_pSkyBoxPixelShader) { m_pSkyBoxPixelShader->Release(); }
+	if (SkyBoxVertexBuffer) { SkyBoxVertexBuffer->Release(); }
+	if (SkyBoxIndexBuffer) { SkyBoxIndexBuffer->Release(); }
+	if (SkyBoxConstantBuffer) { SkyBoxConstantBuffer->Release(); }
+	if (SkyBoxTexture2D) { SkyBoxTexture2D->Release(); }
+	if (SkyBoxInputLayout) { SkyBoxInputLayout->Release(); }
 
 	if (m_pVertexShader) { m_pVertexShader->Release(); }
 	if (m_pPixelShader) { m_pPixelShader->Release(); }
@@ -794,6 +919,93 @@ void SetFloorAndGeometry()
 
 }
 
+void SetSkyBox()
+{
+	SkyboxVertex Vertex[] = {
+		#pragma region SkyVerts
+		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+
+		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
+		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
+		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+
+		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
+		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
+		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
+		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+
+		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+
+		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
+		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+
+		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		#pragma endregion
+
+	};
+	//SkyboxVertex
+	// Initializing Buffer
+	D3D11_BUFFER_DESC		buffdesc;
+	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SkyboxVertex) * 24;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA data;
+	ZeroMemory(&data, sizeof(data));
+	data.pSysMem = Vertex;
+
+	// Creating Vertex Buffer
+	m_pDevice->CreateBuffer(&buffdesc, &data, &SkyBoxVertexBuffer);
+
+	// Creating Index
+	DWORD32 Indexes[] = {
+		#pragma region SkyIndexs
+		3,1,0,
+		2,1,3,
+
+		6,4,5,
+		7,4,6,
+
+		11,9,8,
+		10,9,11,
+
+		14,12,13,
+		15,12,14,
+
+		19,17,16,
+		18,17,19,
+
+		22,20,21,
+		23,20,22
+		#pragma endregion
+	};
+
+	// Creating Index buffer
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 36;
+	data.pSysMem = Indexes;
+	m_pDevice->CreateBuffer(&buffdesc, &data, &SkyBoxIndexBuffer);
+
+	// Initializing/Creating Constant Buffer
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	m_pDevice->CreateBuffer(&buffdesc, nullptr, &SkyBoxConstantBuffer);
+}
+
 void VertexIndexConstBuffers(const char * fileName, ObjLoader & model, ID3D11Buffer *& vertBuffer, ID3D11Buffer *& indexBuffer, ID3D11Buffer *& constantBuffer)
 {
 	ObjLoader mesh;
@@ -870,11 +1082,9 @@ void DrawCube() {
 	// Setting Texture Resource
 	m_pDeviceContext->PSSetShaderResources(NULL, 1, &m_pTextureRV);
 
-	//m_pDeviceContext->GSSetShader(m_pGeometryShader, NULL, NULL);
-
 	// Drawing Indexed Cube
 	m_pDeviceContext->DrawIndexed(36, 0, 0);
-
+	//m_pDeviceContext->DrawIndexedInstanced(36, 3, 0, 0, 0);
 }
 
 void DrawFloor()
@@ -905,7 +1115,7 @@ void DrawFloor()
 	m_pDeviceContext->DrawIndexed(6, 0, 0);
 }
 
-void DrawPoint() {
+void DrawGeometry() {
 	/* Renders the Geometry for the Floor */
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
@@ -940,9 +1150,35 @@ void DrawPoint() {
 	m_pDeviceContext->GSSetShader(NULL, NULL, NULL);
 }
 
+void DrawSkyBox() {
+	/* Renders the Triangles for the Cube */
+	unsigned int	strides = sizeof(SkyboxVertex);
+	unsigned int	offsets = 0;
+	// Setting VertexBuffer
+	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &SkyBoxVertexBuffer, &strides, &offsets);
+	// Setting Input Layout
+	m_pDeviceContext->IASetInputLayout(SkyBoxInputLayout);
+	// Setting Index Buffer
+	m_pDeviceContext->IASetIndexBuffer(SkyBoxIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	// Setting Topology
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	/* Setting Vertex Shader */
+	m_pDeviceContext->VSSetShader(m_pSkyBoxVertexShader, NULL, NULL);
+	// Setting Constant Buffer
+	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &SkyBoxConstantBuffer);
+
+	/* Setting Pixel Shader */
+	m_pDeviceContext->PSSetShader(m_pSkyBoxPixelShader, NULL, NULL);
+	// Setting Texture Resource
+	m_pDeviceContext->PSSetShaderResources(NULL, 1, &SkyBoxTexture2D);
+	
+	// Drawing Indexed Cube
+	m_pDeviceContext->DrawIndexed(36, 0, 0);
+}
+
 void DrawObject(ObjLoader & model, ID3D11Buffer * vertexBuffer, ID3D11Buffer * indexBuffer, ID3D11Buffer * constantBuffer, ID3D11ShaderResourceView * texture)
 {
-
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer

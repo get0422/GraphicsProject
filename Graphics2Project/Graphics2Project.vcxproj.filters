@@ -81,6 +81,8 @@
     <FxCompile Include="Files\Trivial_VS.hlsl" />
     <FxCompile Include="Trivial_GS.hlsl" />
     <FxCompile Include="GS_VS.hlsl" />
+    <FxCompile Include="SkyBox_PS.hlsl" />
+    <FxCompile Include="SkyBox_VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ClassDiagram.cd" />

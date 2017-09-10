@@ -35,6 +35,8 @@ using namespace DirectX;
 #include "Trivial_PS.csh"
 #include "Trivial_GS.csh"
 #include "GS_VS.csh"
+#include "SkyBox_VS.csh"
+#include "SkyBox_PS.csh"
 #include "DDSTextureLoader.h"
 // TODO: reference additional headers your program requires here
 
@@ -65,5 +67,11 @@ struct Lighting
 	XMFLOAT4 Color;
 	XMFLOAT4 Position;
 	XMFLOAT4 Radius;
+};
+
+struct SkyboxVertex
+{
+	XMFLOAT4 position;
+	XMFLOAT4 color;
 };
 #pragma endregion
