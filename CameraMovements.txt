@@ -1,8 +1,8 @@
 
 R = Reset View
 
-Q = Camera Zoom In
-E = Camera Zoom Out
+Q = Camera Fly Forward
+E = Camera Fly Backward
 
 W = Camera movement Up
 S = Camera movement Down
@@ -13,3 +13,47 @@ I = Camera rotate Up
 K = Camera rotate Down
 J = Camera rotate Left
 L = Camera rotate Right
+
+Numpad7 = Camera Zoom In
+Numpad8 = Camera Zoom Out
+
+Numpad1 = Closer Near-Plane
+Numpad2 = Farther Near-Plane
+Numpad4 = Closer Far-Plane
+Numpad5 = Farther Far-Plane
+
+1/! = Goes through the Directions of Directional Light
+	1. Front
+	2. Left
+	3. Back
+	4. Top
+	5. Bottom
+	6. Right
+
+2/@ = Change Direction of SpotLight
+	1. Front
+	2. Left
+	3. Back
+	4. Top
+	5. Bottom
+	6. Right
+
+3/# = Left
+4/$ = Right
+5/% = Closer
+6/^ = Farther
+T   = Up
+G   = Down
+
+7/& = Left
+8/* = Right
+9/( = Closer
+0/) = Farther
+Y   = Up
+H   = Down
+
+
+
+
+because i have it has a button
+C = Cube Grows
