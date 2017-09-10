@@ -25,7 +25,7 @@ bool ObjLoader::Load(const char * filepath)
 		return false;
 
 	vector<XMFLOAT4> points, normals, tempVertices, tempNormals;
-	vector<XMFLOAT2> uv, tempUV;
+	vector<XMFLOAT3> uv, tempUV;
 	vector<unsigned int> posIndices, uvIndices, normalIndices;
 
 	while (true)
@@ -43,7 +43,7 @@ bool ObjLoader::Load(const char * filepath)
 		}
 		else if (strcmp(lineheader, "vt") == 0)
 		{
-			XMFLOAT2 uv;
+			XMFLOAT3 uv;
 			fscanf(file, "%f %f\n", &uv.x, &uv.y);
 			tempUV.push_back(uv);
 		}

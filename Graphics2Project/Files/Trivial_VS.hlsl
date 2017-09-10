@@ -2,7 +2,7 @@ struct INPUT_VERTEX
 {
 	float4 coordinate : POSITION;
 	float4 color : COLOR;
-	float2 uvL : UV;
+	float3 uvL : UV;
 	float4 normalL : NORMAL;
 };
 
@@ -10,7 +10,7 @@ struct OUTPUT_VERTEX
 {
 	float4 projectedCoordinate : SV_POSITION;
 	float4 colorOut : COLOR0;
-	float2 uvH : UV0;
+	float3 uvH : UV0;
 	float4 normalH : NORMAL0;
 	float4 worldpos : WORLD_POSITION;
 };

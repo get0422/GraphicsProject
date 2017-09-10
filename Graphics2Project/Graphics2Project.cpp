@@ -16,6 +16,7 @@
 // Global Variables:
 //----------------------------------------------------------------------------------------------------------
 #pragma region
+//ID3D11Debug*					debug					= nullptr;
 HWND							hWnd;
 HINSTANCE						hInst;                                    // current instance
 WCHAR							szTitle[MAX_LOADSTRING];                  // The title bar text
@@ -27,16 +28,19 @@ ID3D11RenderTargetView*			m_pRenderTargetView 	= nullptr;
 ID3D11InputLayout*				m_pInput				= nullptr;
 ID3D11Resource*					m_pBackBuffer			= nullptr;
 
+// For Texturing
+ID3D11DepthStencilView*			m_pDepthStencil			= nullptr;
+ID3D11Texture2D*				m_pTexture2D			= nullptr;
+ID3D11SamplerState*				m_pSamplerState			= nullptr;
+
+// Need for Loading Cube
+XMMATRIX						CubeMatrix;
 ID3D11Buffer*					m_pVertexBuffer			= nullptr;
 ID3D11Buffer*					m_pIndexBuffer			= nullptr;
 ID3D11Buffer*					m_pConstantBuffer		= nullptr;
-ID3D11Texture2D*				m_pTexture2D			= nullptr;
+ID3D11ShaderResourceView*		m_pTexture				= nullptr;
 
-ID3D11DepthStencilView*			m_pDepthStencil			= nullptr;
-ID3D11SamplerState*				m_pSamplerState			= nullptr;
-
-ID3D11ShaderResourceView*		m_pTextureRV			= nullptr;
-
+// Needed For Loading All the Different Shaders
 ID3D11VertexShader* 			m_pVertexShader			= nullptr;
 ID3D11VertexShader* 			m_pGeometryVertexShader = nullptr;
 ID3D11VertexShader* 			m_pSkyBoxVertexShader	= nullptr;
@@ -44,26 +48,7 @@ ID3D11PixelShader*				m_pSkyBoxPixelShader	= nullptr;
 ID3D11PixelShader*				m_pPixelShader			= nullptr;
 ID3D11GeometryShader*			m_pGeometryShader		= nullptr;
 
-//ID3D11Debug*					debug					= nullptr;
-
-D3D_DRIVER_TYPE					m_DriverType;
-D3D_FEATURE_LEVEL				m_FeatureLevel;
-D3D11_VIEWPORT					m_ViewPort;
-
-XMMATRIX						WorldMatrix;
-XMMATRIX						ViewMatrix;
-XMMATRIX						ProjectionMatrix;
-
-//View Martix Vectors
-XMVECTOR Eye					= XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
-XMVECTOR Focus					= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-XMVECTOR Up						= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-XMVECTOR ResetEye = Eye;
-
-XMMATRIX						CubeMatrix;
-
-
-// Need for Loading Pryamid
+// Need for Loading Pryamid(Any Model)
 ObjLoader						Pryamid;
 XMMATRIX						PryamidMatrix;
 ID3D11Buffer*					PryamidVertexBuffer		= nullptr;
@@ -76,14 +61,14 @@ XMMATRIX						FloorMatrix;
 ID3D11Buffer*					FloorVertexBuffer		= nullptr;
 ID3D11Buffer*					FloorIndexBuffer		= nullptr;
 ID3D11Buffer*					FloorConstantBuffer		= nullptr;
-ID3D11ShaderResourceView*		FloorTexture2D			= nullptr;
+ID3D11ShaderResourceView*		FloorTexture			= nullptr;
 
 // Need For Geometry
 XMMATRIX						GeometryMatrix;
 ID3D11Buffer*					GeometryVertexBuffer	= nullptr;
 ID3D11Buffer*					GeometryIndexBuffer		= nullptr;
 ID3D11Buffer*					GeometryConstantBuffer	= nullptr;
-ID3D11ShaderResourceView*		GeometryTexture2D		= nullptr;
+ID3D11ShaderResourceView*		GeometryTexture			= nullptr;
 
 // Need For Lighting
 Lighting Lights[3];
@@ -94,14 +79,38 @@ ID3D11Buffer*					LightConstantBuffer		= nullptr;
 ID3D11Buffer*					SkyBoxVertexBuffer		= nullptr;
 ID3D11Buffer*					SkyBoxIndexBuffer		= nullptr;
 ID3D11Buffer*					SkyBoxConstantBuffer	= nullptr;
-ID3D11ShaderResourceView*		SkyBoxTexture2D			= nullptr;
-ID3D11InputLayout*				SkyBoxInputLayout		= nullptr;
+ID3D11ShaderResourceView*		SkyBoxTexture			= nullptr;
 
-int DirectionCount = 0;
-int SpotCount = 0;
-float Zoom = 2;
-float NearPlane = 0.01;
-float FarPlane = 200;
+// Needed For SwapChain
+D3D_FEATURE_LEVEL				m_FeatureLevel;
+
+// Needed to Make the Screen
+D3D11_VIEWPORT					m_ViewPort;
+
+// Needed For Everything
+XMMATRIX						WorldMatrix;
+XMMATRIX						ViewMatrix;
+XMMATRIX						ProjectionMatrix;
+
+// View Martix Vectors
+XMVECTOR Eye					= XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
+XMVECTOR Focus					= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+XMVECTOR Up						= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+XMVECTOR ResetEye				= Eye;
+
+// Moving Light
+int DirectionCount				= 0;
+int SpotCount					= 0;
+
+// Moving Camera (Zoom/Near/Far)
+float Zoom						= 2;
+float NearPlane					= 0.01;
+float FarPlane					= 200;
+
+// For Testing
+int cubeverts  = 0;
+
+
 #pragma endregion
 
 
@@ -123,6 +132,8 @@ void DrawCube();
 void DrawFloor();
 void DrawGeometry();
 void DrawSkyBox();
+void CameraMovement();
+void LightMovment();
 void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
 void DrawObject(ObjLoader & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * worldbuffer, ID3D11ShaderResourceView * texture);
 
@@ -378,15 +389,15 @@ HRESULT Initialize() {
 	VertexIndexConstBuffers("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
 	
 	// Loading Indexed Geometry Textures
-	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTextureRV);
-	CreateDDSTextureFromFile(m_pDevice, L"files/bownCartoonGround_seamless.dds", NULL, &FloorTexture2D);
-	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &GeometryTexture2D);
+	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTexture);
+	CreateDDSTextureFromFile(m_pDevice, L"files/bownCartoonGround_seamless.dds", NULL, &FloorTexture);
+	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &GeometryTexture);
 
 	// Loading Object Textures 
 	CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);
 
 	// Loading SkyBox Texture
-	CreateDDSTextureFromFile(m_pDevice, L"files/SKYBOX.dds", NULL, &SkyBoxTexture2D);
+	CreateDDSTextureFromFile(m_pDevice, L"files/SKYBOX.dds", NULL, &SkyBoxTexture);
 
 	/* Setting Lighting */
 	ZeroMemory(&Lights, sizeof(Lighting) * 3);
@@ -444,7 +455,7 @@ HRESULT Initialize() {
 	{
 		{ "POSITION", NULL, DXGI_FORMAT_R32G32B32A32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
 		{ "COLOR", NULL, DXGI_FORMAT_R32G32B32A32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
-		{ "UV", NULL, DXGI_FORMAT_R32G32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
+		{ "UV", NULL, DXGI_FORMAT_R32G32B32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
 		{ "NORMAL", NULL, DXGI_FORMAT_R32G32B32A32_FLOAT, NULL, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, NULL },
 	};
 	// Number of Elements in the Layout
@@ -452,15 +463,6 @@ HRESULT Initialize() {
 
 	// Creating the Input Layout
 	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
-	
-	D3D11_INPUT_ELEMENT_DESC vskyLayout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	};
-	// Number of Elements in the Layout
-	UINT numberOfElements2 = ARRAYSIZE(vskyLayout);
-
-	m_pDevice->CreateInputLayout(vskyLayout, numberOfElements2, SkyBox_VS, sizeof(SkyBox_VS), &SkyBoxInputLayout);
 
 	// Initializing the world matrix
 	WorldMatrix		= XMMatrixIdentity();
@@ -499,114 +501,14 @@ bool Run() {
 		timeStart = timeCur;
 	t = (timeCur - timeStart) / 1000.0f;
 
-	#pragma region Window Clipping
-	// Near Plane
-	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1) { NearPlane += 0.01f; }
-	if (GetAsyncKeyState(VK_NUMPAD2) & 0x1) { if (FarPlane > 0.02) { NearPlane -= 0.01f; } }
-	// Fare Plane
-	if (GetAsyncKeyState(VK_NUMPAD4) & 0x1) { if (FarPlane > 1) { FarPlane -= 1.0f; } }
-	if (GetAsyncKeyState(VK_NUMPAD5) & 0x1) { FarPlane += 1.0f; }
-	// Zoom
-	if (GetAsyncKeyState(VK_NUMPAD7) & 0x1) { Zoom += 0.05;}
-	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1) { if (Zoom > 1.1) { Zoom -= 0.05; } }
+	// Testing
+	if (GetAsyncKeyState('C') & 0x1) { cubeverts++; SetCube(); }
 
-	// Initializing the projection matrix
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI/Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
-	#pragma endregion
+	// Light Direction/Position Movement
+	LightMovment();
 
-
-	#pragma region Light Movement
-	if (GetAsyncKeyState('1') & 0x1) {
-		if (DirectionCount == 0) {
-			Lights[2].Direction = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
-			DirectionCount++;
-		}
-		else if (DirectionCount == 1) {
-			Lights[2].Direction = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
-			DirectionCount++;
-		}
-		else if (DirectionCount == 2) {
-			Lights[2].Direction = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
-			DirectionCount++;
-		}
-		else if (DirectionCount == 3) {
-			Lights[2].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
-			DirectionCount++;
-		}
-		else if (DirectionCount == 4) {
-			Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-			DirectionCount = 0;
-		}
-	}
-	if (GetAsyncKeyState('2') & 0x1) {
-		if (SpotCount == 0) {
-			Lights[0].Direction = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
-			SpotCount++;
-		}
-		else if (SpotCount == 1) {
-			Lights[0].Direction = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
-			SpotCount++;
-		}
-		else if (SpotCount == 2) {
-			Lights[0].Direction = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
-			SpotCount++;
-		}
-		else if (SpotCount == 3) {
-			Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-			SpotCount++;
-		}
-		else if (SpotCount == 4) {
-			Lights[0].Direction = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
-			SpotCount++;
-		}
-		else if (SpotCount == 5) {
-			Lights[0].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
-			SpotCount = 0;
-		}
-	}
-
-	if (GetAsyncKeyState('G')) { Lights[0].Position.y -= 0.005; }
-	if (GetAsyncKeyState('T')) { Lights[0].Position.y += 0.005; }
-	if (GetAsyncKeyState('3')) { Lights[0].Position.x -= 0.005; }
-	if (GetAsyncKeyState('4')) { Lights[0].Position.x += 0.005; }
-	if (GetAsyncKeyState('5')) { Lights[0].Position.z -= 0.005; }
-	if (GetAsyncKeyState('6')) { Lights[0].Position.z += 0.005; }
-
-
-	if (GetAsyncKeyState('H')) { Lights[1].Position.y -= 0.005; }
-	if (GetAsyncKeyState('Y')) { Lights[1].Position.y += 0.005; }
-	if (GetAsyncKeyState('7')) { Lights[1].Position.x -= 0.005; }
-	if (GetAsyncKeyState('8')) { Lights[1].Position.x += 0.005; }
-	if (GetAsyncKeyState('9')) { Lights[1].Position.z -= 0.005; }
-	if (GetAsyncKeyState('0')) { Lights[1].Position.z += 0.005; }
-	#pragma endregion
-
-	// ViewMatrix/ViewPort Movement/Rotation
-	#pragma region Camera Movement
-	if (GetAsyncKeyState('R')) { ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); }
-	#if 1
-	// ViewPort/Camera Zoom In
-	if (GetAsyncKeyState('Q')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, -0.01f)); }
-	// ViewPort/Camera Zoom Out
-	if (GetAsyncKeyState('E')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, 0.01f)); }
-	#endif
-	// ViewPort/Camera movement Up
-	if (GetAsyncKeyState('W')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, -0.01f, 0)); }
-	// ViewPort/Camera movement Down
-	if (GetAsyncKeyState('S')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0.01f, 0)); }
-	// ViewPort/Camera movement Right
-	if (GetAsyncKeyState('D')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(-0.01f, 0, 0)); }
-	// ViewPort/Camera movement Left
-	if (GetAsyncKeyState('A')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0.01f, 0, 0)); }
-	// ViewPort/Camera rotate Up
-	if (GetAsyncKeyState('I')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(0.001)); }
-	// ViewPort/Camera rotate Down
-	if (GetAsyncKeyState('K')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(-0.001)); }
-	// ViewPort/Camera rotate Left
-	if (GetAsyncKeyState('J')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(0.001)); }
-	// ViewPort/Camera rotate Right
-	if (GetAsyncKeyState('L')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(-0.001)); }
-	#pragma endregion
+	// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+	CameraMovement();
 
 	// Setting Target View
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
@@ -621,7 +523,8 @@ bool Run() {
 	m_pDeviceContext->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer);
 
 	// Rotating Cube
-	CubeMatrix = XMMatrixRotationY(t);
+	//CubeMatrix = XMMatrixRotationY(t);
+	CubeMatrix = XMMatrixMultiply(XMMatrixRotationY(t), XMMatrixTranslation(0, 0 + cubeverts, 0));
 
 	// Clearing Back Buffer
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
@@ -709,7 +612,7 @@ void Shutdown() {
 	if (m_pTexture2D) { m_pTexture2D->Release(); }
 	if (m_pDepthStencil) { m_pDepthStencil->Release(); }
 	if (m_pSamplerState) { m_pSamplerState->Release(); }
-	if (m_pTextureRV) { m_pTextureRV->Release(); }
+	if (m_pTexture) { m_pTexture->Release(); }
 
 	if (PryamidVertexBuffer) { PryamidVertexBuffer->Release(); }
 	if (PryamidIndexBuffer) { PryamidIndexBuffer->Release(); }
@@ -719,22 +622,21 @@ void Shutdown() {
 	if (FloorVertexBuffer) { FloorVertexBuffer->Release(); }
 	if (FloorIndexBuffer) { FloorIndexBuffer->Release(); }
 	if (FloorConstantBuffer) { FloorConstantBuffer->Release(); }
-	if (FloorTexture2D) { FloorTexture2D->Release(); }
+	if (FloorTexture) { FloorTexture->Release(); }
 
 	if (LightConstantBuffer) { LightConstantBuffer->Release(); }
 	
 	if (GeometryVertexBuffer) { GeometryVertexBuffer->Release(); }
 	if (GeometryIndexBuffer) { GeometryIndexBuffer->Release(); }
 	if (GeometryConstantBuffer) { GeometryConstantBuffer->Release(); }
-	if (GeometryTexture2D) { GeometryTexture2D->Release(); }
+	if (GeometryTexture) { GeometryTexture->Release(); }
 
 	if (m_pSkyBoxVertexShader) { m_pSkyBoxVertexShader->Release(); }
 	if (m_pSkyBoxPixelShader) { m_pSkyBoxPixelShader->Release(); }
 	if (SkyBoxVertexBuffer) { SkyBoxVertexBuffer->Release(); }
 	if (SkyBoxIndexBuffer) { SkyBoxIndexBuffer->Release(); }
 	if (SkyBoxConstantBuffer) { SkyBoxConstantBuffer->Release(); }
-	if (SkyBoxTexture2D) { SkyBoxTexture2D->Release(); }
-	if (SkyBoxInputLayout) { SkyBoxInputLayout->Release(); }
+	if (SkyBoxTexture) { SkyBoxTexture->Release(); }
 
 	if (m_pVertexShader) { m_pVertexShader->Release(); }
 	if (m_pPixelShader) { m_pPixelShader->Release(); }
@@ -752,35 +654,35 @@ void SetCube() {
 	SIMPLE_VERTEX Vertex[] = {
 		#pragma region CubeVerts
 		#if TextureCube
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
 ////////////////
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
 ////////////////
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
 		#endif // 0
 
 		#if ColorCube
@@ -857,14 +759,12 @@ void SetCube() {
 	};
 
 	// Creating Index buffer
-	buffdesc.Usage = D3D11_USAGE_DEFAULT;
 	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	buffdesc.ByteWidth = sizeof(DWORD32) * 36;
 	data.pSysMem = Indexes;
 	m_pDevice->CreateBuffer(&buffdesc, &data, &m_pIndexBuffer);
 
 	// Initializing/Creating Constant Buffer
-	buffdesc.Usage = D3D11_USAGE_DEFAULT;
 	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	buffdesc.ByteWidth = sizeof(ConstantMatrix);
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
@@ -874,10 +774,10 @@ void SetFloorAndGeometry()
 {
 	// Creating Floor Vertex
 	SIMPLE_VERTEX Vertex[] = {
-		{ XMFLOAT4(-30.0f, -0.5f, -30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(30.0f, -0.5f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(30.0f, -0.5f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-30.0f, -0.5f,  30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT2(0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-30.0f, -0.5f, -30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(30.0f, -0.5f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(30.0f, -0.5f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-30.0f, -0.5f,  30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 	};
 
 	// Initializing Vertex Buffer
@@ -903,7 +803,6 @@ void SetFloorAndGeometry()
 	};
 
 	// Initializing/Creating Index Buffer
-	buffdesc.Usage = D3D11_USAGE_DEFAULT;
 	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
 	data.pSysMem = Indexes;
@@ -911,7 +810,6 @@ void SetFloorAndGeometry()
 	m_pDevice->CreateBuffer(&buffdesc, &data, &GeometryIndexBuffer);
 
 	// Initializing/Creating Constant Buffer
-	buffdesc.Usage = D3D11_USAGE_DEFAULT;
 	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	buffdesc.ByteWidth = sizeof(ConstantMatrix);
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &FloorConstantBuffer);
@@ -921,47 +819,47 @@ void SetFloorAndGeometry()
 
 void SetSkyBox()
 {
-	SkyboxVertex Vertex[] = {
-		#pragma region SkyVerts
-		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+	SIMPLE_VERTEX Vertex[] = {
+		#pragma region CubeVerts
 
-		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
-		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
-		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
-		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
-		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
-		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 }, 
-		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-
-		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
-		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)	 },
+		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+////////////////
+		{ XMFLOAT4(-50.0f, -50.0f, 50.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, -50.0f, 50.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(-50.0f, 50.0f, 50.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+////////////////
+		{ XMFLOAT4(-50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, -50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(50.0f, 50.0f, -50.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(-50.0f, 50.0f, -50.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
 		#pragma endregion
-
 	};
-	//SkyboxVertex
+
 	// Initializing Buffer
 	D3D11_BUFFER_DESC		buffdesc;
 	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
 	buffdesc.Usage = D3D11_USAGE_DEFAULT;
 	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	buffdesc.ByteWidth = sizeof(SkyboxVertex) * 24;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 24;
 
 	// Initializing SubSource
 	D3D11_SUBRESOURCE_DATA data;
@@ -973,7 +871,7 @@ void SetSkyBox()
 
 	// Creating Index
 	DWORD32 Indexes[] = {
-		#pragma region SkyIndexs
+		#pragma region CubeIndexs
 		3,1,0,
 		2,1,3,
 
@@ -1004,6 +902,7 @@ void SetSkyBox()
 	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	buffdesc.ByteWidth = sizeof(ConstantMatrix);
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &SkyBoxConstantBuffer);
+
 }
 
 void VertexIndexConstBuffers(const char * fileName, ObjLoader & model, ID3D11Buffer *& vertBuffer, ID3D11Buffer *& indexBuffer, ID3D11Buffer *& constantBuffer)
@@ -1080,7 +979,7 @@ void DrawCube() {
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(NULL, 1, &m_pTextureRV);
+	m_pDeviceContext->PSSetShaderResources(NULL, 1, &m_pTexture);
 
 	// Drawing Indexed Cube
 	m_pDeviceContext->DrawIndexed(36, 0, 0);
@@ -1102,14 +1001,14 @@ void DrawFloor()
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(m_pVertexShader, nullptr, NULL);
+	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
 	// Setting Constant Buffer
 	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &FloorConstantBuffer);
 
 	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, NULL);
+	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(NULL, 1, &FloorTexture2D);
+	m_pDeviceContext->PSSetShaderResources(NULL, 1, &FloorTexture);
 
 	// Drawing Indexed Quad
 	m_pDeviceContext->DrawIndexed(6, 0, 0);
@@ -1136,7 +1035,7 @@ void DrawGeometry() {
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(0, 1, &GeometryTexture2D);
+	m_pDeviceContext->PSSetShaderResources(0, 1, &GeometryTexture);
 	
 	/* Setting Geometry Shader */
 	m_pDeviceContext->GSSetShader(m_pGeometryShader, NULL, NULL);
@@ -1151,13 +1050,13 @@ void DrawGeometry() {
 }
 
 void DrawSkyBox() {
-	/* Renders the Triangles for the Cube */
-	unsigned int	strides = sizeof(SkyboxVertex);
+	/* Renders the Triangles for the SkyBox */
+	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
 	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &SkyBoxVertexBuffer, &strides, &offsets);
 	// Setting Input Layout
-	m_pDeviceContext->IASetInputLayout(SkyBoxInputLayout);
+	m_pDeviceContext->IASetInputLayout(m_pInput);
 	// Setting Index Buffer
 	m_pDeviceContext->IASetIndexBuffer(SkyBoxIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
 	// Setting Topology
@@ -1171,9 +1070,9 @@ void DrawSkyBox() {
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pSkyBoxPixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(NULL, 1, &SkyBoxTexture2D);
-	
-	// Drawing Indexed Cube
+	m_pDeviceContext->PSSetShaderResources(NULL, 1, &SkyBoxTexture);
+
+	// Drawing Indexed SkyBox
 	m_pDeviceContext->DrawIndexed(36, 0, 0);
 }
 
@@ -1201,3 +1100,122 @@ void DrawObject(ObjLoader & model, ID3D11Buffer * vertexBuffer, ID3D11Buffer * i
 	// Drawing Indexed Model
 	m_pDeviceContext->DrawIndexed(model.GetIndex().size(), 0, 0);
 }
+
+
+//----------------------------------------------------------------------------------------------------------
+// Functions: Key Presses
+//----------------------------------------------------------------------------------------------------------
+void CameraMovement() {
+	// Reset Camera
+	if (GetAsyncKeyState('R')) { ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); }
+
+	// ViewPort/Camera Fly Forward
+	if (GetAsyncKeyState('Q')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, -0.01f)); }
+	// ViewPort/Camera Fly Backward
+	if (GetAsyncKeyState('E')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, 0.01f)); }
+
+	// ViewPort/Camera movement Up
+	if (GetAsyncKeyState('W')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, -0.01f, 0)); }
+	// ViewPort/Camera movement Down
+	if (GetAsyncKeyState('S')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0.01f, 0)); }
+	// ViewPort/Camera movement Right
+	if (GetAsyncKeyState('D')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(-0.01f, 0, 0)); }
+	// ViewPort/Camera movement Left
+	if (GetAsyncKeyState('A')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0.01f, 0, 0)); }
+
+	// ViewPort/Camera rotate Up
+	if (GetAsyncKeyState('I')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(0.001)); }
+	// ViewPort/Camera rotate Down
+	if (GetAsyncKeyState('K')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(-0.001)); }
+	// ViewPort/Camera rotate Left
+	if (GetAsyncKeyState('J')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(0.001)); }
+	// ViewPort/Camera rotate Right
+	if (GetAsyncKeyState('L')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(-0.001)); }
+
+	// Adjust Near Plane
+	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1) { NearPlane += 0.01f; }
+	if (GetAsyncKeyState(VK_NUMPAD2) & 0x1) { if (FarPlane > 0.02) { NearPlane -= 0.01f; } }
+
+	// Adjust Fare Plane
+	if (GetAsyncKeyState(VK_NUMPAD4) & 0x1) { if (FarPlane > 1) { FarPlane -= 1.0f; } }
+	if (GetAsyncKeyState(VK_NUMPAD5) & 0x1) { FarPlane += 1.0f; }
+
+	// ViewPort/Camera Zoom In
+	if (GetAsyncKeyState(VK_NUMPAD7) & 0x1) { Zoom += 0.05; }
+	// ViewPort/Camera Zoom Out
+	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1) { if (Zoom > 1.1) { Zoom -= 0.05; } }
+
+	// Initializing the projection matrix
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+}
+
+void LightMovment() {
+	if (GetAsyncKeyState('1') & 0x1) {
+		if (DirectionCount == 0) {
+			Lights[2].Direction = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 1) {
+			Lights[2].Direction = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 2) {
+			Lights[2].Direction = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 3) {
+			Lights[2].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 4) {
+			Lights[2].Direction = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+			DirectionCount++;
+		}
+		else if (DirectionCount == 5) {
+			Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+			DirectionCount = 0;
+		}
+	}
+	if (GetAsyncKeyState('2') & 0x1) {
+		if (SpotCount == 0) {
+			Lights[0].Direction = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 1) {
+			Lights[0].Direction = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 2) {
+			Lights[0].Direction = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 3) {
+			Lights[0].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 4) {
+			Lights[0].Direction = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+			SpotCount++;
+		}
+		else if (SpotCount == 5) {
+			Lights[0].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+			SpotCount = 0;
+		}
+	}
+
+	if (GetAsyncKeyState('G')) { Lights[0].Position.y -= 0.005; }
+	if (GetAsyncKeyState('T')) { Lights[0].Position.y += 0.005; }
+	if (GetAsyncKeyState('3')) { Lights[0].Position.x -= 0.005; }
+	if (GetAsyncKeyState('4')) { Lights[0].Position.x += 0.005; }
+	if (GetAsyncKeyState('5')) { Lights[0].Position.z -= 0.005; }
+	if (GetAsyncKeyState('6')) { Lights[0].Position.z += 0.005; }
+
+
+	if (GetAsyncKeyState('H')) { Lights[1].Position.y -= 0.005; }
+	if (GetAsyncKeyState('Y')) { Lights[1].Position.y += 0.005; }
+	if (GetAsyncKeyState('7')) { Lights[1].Position.x -= 0.005; }
+	if (GetAsyncKeyState('8')) { Lights[1].Position.x += 0.005; }
+	if (GetAsyncKeyState('9')) { Lights[1].Position.z -= 0.005; }
+	if (GetAsyncKeyState('0')) { Lights[1].Position.z += 0.005; }
+}
+

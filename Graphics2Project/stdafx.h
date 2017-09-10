@@ -48,7 +48,7 @@ using namespace DirectX;
 struct SIMPLE_VERTEX {
 	XMFLOAT4					points;
 	XMFLOAT4					Color;
-	XMFLOAT2					uvs;
+	XMFLOAT3					uvs;
 	XMFLOAT4					normals;
 	XMFLOAT4					WorldPositon;
 };
