@@ -63,6 +63,12 @@ ID3D11Buffer*					FloorIndexBuffer		= nullptr;
 ID3D11Buffer*					FloorConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		FloorTexture			= nullptr;
 
+// Need for Loading Floor
+ID3D11Buffer*					StincelVertexBuffer		= nullptr;
+ID3D11Buffer*					StincelIndexBuffer		= nullptr;
+ID3D11Buffer*					StincelConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		StincelTexture			= nullptr;
+
 // Need For Geometry
 XMMATRIX						GeometryMatrix;
 ID3D11Buffer*					GeometryVertexBuffer	= nullptr;
@@ -76,10 +82,14 @@ XMMATRIX						LightMatrix;
 ID3D11Buffer*					LightConstantBuffer		= nullptr;
 
 // Need For Skybox
+XMMATRIX						SkyBoxMatrix;
 ID3D11Buffer*					SkyBoxVertexBuffer		= nullptr;
 ID3D11Buffer*					SkyBoxIndexBuffer		= nullptr;
 ID3D11Buffer*					SkyBoxConstantBuffer	= nullptr;
 ID3D11ShaderResourceView*		SkyBoxTexture			= nullptr;
+
+// Instancing
+ID3D11Buffer*					InstanceBuffer			= nullptr;
 
 // Needed For SwapChain
 D3D_FEATURE_LEVEL				m_FeatureLevel;
@@ -90,6 +100,7 @@ D3D11_VIEWPORT					m_ViewPort;
 // Needed For Everything
 XMMATRIX						WorldMatrix;
 XMMATRIX						ViewMatrix;
+XMMATRIX						ViewMatrix2;
 XMMATRIX						ProjectionMatrix;
 
 // View Martix Vectors
@@ -105,7 +116,7 @@ int SpotCount					= 0;
 // Moving Camera (Zoom/Near/Far)
 float Zoom						= 2;
 float NearPlane					= 0.01;
-float FarPlane					= 200;
+float FarPlane					= 300;
 
 // For Testing
 int cubeverts  = 0;
@@ -132,8 +143,11 @@ void DrawCube();
 void DrawFloor();
 void DrawGeometry();
 void DrawSkyBox();
+void DrawInstancedCube();
 void CameraMovement();
 void LightMovment();
+void SetStincel();
+void DrawStincel();
 void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
 void DrawObject(ObjLoader & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * worldbuffer, ID3D11ShaderResourceView * texture);
 
@@ -404,7 +418,7 @@ HRESULT Initialize() {
 
 	// Spot Light
 	Lights[0].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
-	Lights[0].Color		= XMFLOAT4(0.0f, 0.0f, 255.0f, 1.0f);
+	Lights[0].Color		= XMFLOAT4(0.0f, 255.0f, 0.0f, 1.0f);
 	Lights[0].Position  = XMFLOAT4(0.0f, 7.0f, 0.0f, 0.0f);
 	Lights[0].Radius	= XMFLOAT4(0.923f, 0.707f, 10.0f, 0.0f);
 
@@ -479,11 +493,11 @@ HRESULT Initialize() {
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
+	ViewMatrix2 = XMMatrixLookAtLH(Eye, Focus, Up);
 
 	// Initializing the projection matrix
 	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI/Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
-
-
+	
 	return S_OK;
 }
 
@@ -494,15 +508,14 @@ HRESULT Initialize() {
 bool Run() {
 
 	// Time Per Frame
-	static float t = 0.0f;
+	float t = 0.0f;
 	static ULONGLONG timeStart = 0;
 	ULONGLONG timeCur = GetTickCount64();
 	if (timeStart == 0)
 		timeStart = timeCur;
 	t = (timeCur - timeStart) / 1000.0f;
 
-	// Testing
-	if (GetAsyncKeyState('C') & 0x1) { cubeverts++; SetCube(); }
+	//Test Stuff
 
 	// Light Direction/Position Movement
 	LightMovment();
@@ -512,10 +525,10 @@ bool Run() {
 
 	// Setting Target View
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
-	
+
 	// Setting Viewport
 	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
-	
+
 	// Setting Sampler State
 	m_pDeviceContext->PSSetSamplers(NULL, 1, &m_pSamplerState);
 
@@ -524,14 +537,16 @@ bool Run() {
 
 	// Rotating Cube
 	//CubeMatrix = XMMatrixRotationY(t);
-	CubeMatrix = XMMatrixMultiply(XMMatrixRotationY(t), XMMatrixTranslation(0, 0 + cubeverts, 0));
+	if (cubeverts < 15) {
+		CubeMatrix = XMMatrixMultiply(XMMatrixRotationY(t), XMMatrixTranslation(0, 0 + cubeverts, 0));
+	}
 
 	// Clearing Back Buffer
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
 
 	// Clearing Depth Buffer
 	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, NULL);
-
+	
 	// Update variables
 	ConstantMatrix constantM;
 	constantM.ObjectMatrix				= XMMatrixTranspose(CubeMatrix);
@@ -580,7 +595,6 @@ bool Run() {
 	// Updating the Light Buffer
 	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
 
-
 	// Drawing Objects
 	DrawSkyBox();
 	DrawFloor();
@@ -599,7 +613,6 @@ bool Run() {
 // Clean/Release the Onjects we have Created in Memory
 //----------------------------------------------------------------------------------------------------------
 void Shutdown() {
-
 	if (m_pSwapChain) { m_pSwapChain->Release(); }
 	if (m_pDevice) { m_pDevice->Release(); }
 	if (m_pRenderTargetView) { m_pRenderTargetView->Release(); }
@@ -642,7 +655,6 @@ void Shutdown() {
 	if (m_pPixelShader) { m_pPixelShader->Release(); }
 	if (m_pGeometryVertexShader) { m_pGeometryVertexShader->Release(); }
 	if (m_pGeometryShader) { m_pGeometryShader->Release(); }
-
 }
 
 
@@ -651,52 +663,163 @@ void Shutdown() {
 //----------------------------------------------------------------------------------------------------------
 void SetCube() {
 	// Creating Cube Vertex
-	SIMPLE_VERTEX Vertex[] = {
-		#pragma region CubeVerts
+
+	if (cubeverts < 4) {
+	#pragma region Normal
+		SIMPLE_VERTEX Vertex[] = {
+			#pragma region CubeVerts
+			#if TextureCube
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			////////////////
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+			////////////////
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			#endif // 0
+
+			#if ColorCube
+							{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+							{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+							{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+							{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+							{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+							{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+							{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+							{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			#endif // 0
+			#pragma endregion
+		};
+	// Initializing Buffer
+	D3D11_BUFFER_DESC		buffdesc;
+	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 24;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA data;
+	ZeroMemory(&data, sizeof(data));
+	data.pSysMem = Vertex;
+
+	// Creating Vertex Buffer
+	m_pDevice->CreateBuffer(&buffdesc, &data, &m_pVertexBuffer);
+
+	// Creating Index
+	DWORD32 Indexes[] = {
+		#pragma region CubeIndexs
 		#if TextureCube
-		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		3,1,0,
+		2,1,3,
 
-		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		6,4,5,
+		7,4,6,
 
-		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		11,9,8,
+		10,9,11,
 
-		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-////////////////
-		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-////////////////
-		{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		14,12,13,
+		15,12,14,
+
+		19,17,16,
+		18,17,19,
+
+		22,20,21,
+		23,20,22
 		#endif // 0
 
 		#if ColorCube
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		3,1,0,
+		2,1,3,
+
+		0,5,4,
+		1,5,0,
+
+		3,4,7,
+		0,4,3,
+
+		1,6,5,
+		2,6,1,
+
+		2,7,6,
+		3,7,2,
+
+		6,4,5,
+		7,4,6,
 		#endif // 0
 		#pragma endregion
 	};
+
+	// Creating Index buffer
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 36;
+	data.pSysMem = Indexes;
+	m_pDevice->CreateBuffer(&buffdesc, &data, &m_pIndexBuffer);
+
+	// Initializing/Creating Constant Buffer
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
+	#pragma endregion
+	}
+	else if (cubeverts >= 4) {
+	#pragma region Inverted
+		SIMPLE_VERTEX Vertex[] = {
+			#pragma region CubeVerts
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			////////////////
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, 1.0f + cubeverts, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+			////////////////
+			{ XMFLOAT4(-1.0f - cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, -1.0f - cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f + cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f - cubeverts, 1.0f + cubeverts, -1.0f - cubeverts, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			#pragma endregion
+		};
+		
 
 	// Initializing Buffer
 	D3D11_BUFFER_DESC		buffdesc;
@@ -768,16 +891,19 @@ void SetCube() {
 	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	buffdesc.ByteWidth = sizeof(ConstantMatrix);
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
+	#pragma endregion
+	}
+
 }
 
 void SetFloorAndGeometry()
 {
 	// Creating Floor Vertex
 	SIMPLE_VERTEX Vertex[] = {
-		{ XMFLOAT4(-30.0f, -0.5f, -30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(30.0f, -0.5f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(30.0f, -0.5f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-30.0f, -0.5f,  30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-30.0f, -0.55f, -30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(30.0f, -0.55f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(30.0f, -0.55f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-30.0f, -0.55f,  30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 	};
 
 	// Initializing Vertex Buffer
@@ -905,7 +1031,50 @@ void SetSkyBox()
 
 }
 
-void VertexIndexConstBuffers(const char * fileName, ObjLoader & model, ID3D11Buffer *& vertBuffer, ID3D11Buffer *& indexBuffer, ID3D11Buffer *& constantBuffer)
+void SetStincel()
+{
+	// Creating Floor Vertex
+	SIMPLE_VERTEX Vertex[] = {
+		{ XMFLOAT4(-5.0f, -0.5f, -5.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(5.0f, -0.5f, -5.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(5.0f, -0.5f,  5.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-5.0f, -0.5f,  5.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+	};
+
+	// Initializing Vertex Buffer
+	D3D11_BUFFER_DESC		buffdesc;
+	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA data;
+	ZeroMemory(&data, sizeof(data));
+	data.pSysMem = Vertex;
+
+	// Creating Vertex Buffer
+	m_pDevice->CreateBuffer(&buffdesc, &data, &StincelVertexBuffer);
+
+	// Creating Floor Index
+	DWORD32 Indexes[] = {
+		3,1,0,
+		2,1,3,
+	};
+
+	// Initializing/Creating Index Buffer
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
+	data.pSysMem = Indexes;
+	m_pDevice->CreateBuffer(&buffdesc, &data, &StincelIndexBuffer);
+
+	// Initializing/Creating Constant Buffer
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	m_pDevice->CreateBuffer(&buffdesc, nullptr, &StincelConstantBuffer);
+}
+
+void VertexIndexConstBuffers(const char* fileName, ObjLoader &model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer)
 {
 	ObjLoader mesh;
 	mesh.Load(fileName);
@@ -918,6 +1087,7 @@ void VertexIndexConstBuffers(const char * fileName, ObjLoader & model, ID3D11Buf
 	// Creating Object Vertex
 	for (unsigned int i = 0; i < model.GetModel().size(); i++) {
 		Vertex[i] = model.GetModel()[i];
+		Vertex[i].uvs.z = 1;
 	}
 	// Creating Object Index
 	for (unsigned int i = 0; i < model.GetIndex().size(); i++) {
@@ -986,6 +1156,33 @@ void DrawCube() {
 	//m_pDeviceContext->DrawIndexedInstanced(36, 3, 0, 0, 0);
 }
 
+void DrawInstancedCube() {
+	/* Renders the Triangles for the Cube */
+	unsigned int	strides = sizeof(SIMPLE_VERTEX);
+	unsigned int	offsets = 0;
+	// Setting VertexBuffer
+	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &m_pVertexBuffer, &strides, &offsets);
+	// Setting Input Layout
+	m_pDeviceContext->IASetInputLayout(m_pInput);
+	// Setting Index Buffer
+	m_pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	// Setting Topology
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	/* Setting Vertex Shader */
+	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
+	// Setting Constant Buffer
+	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &m_pConstantBuffer);
+
+	/* Setting Pixel Shader */
+	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
+	// Setting Texture Resource
+	m_pDeviceContext->PSSetShaderResources(NULL, 1, &m_pTexture);
+
+	// Drawing Instanced Cube
+	m_pDeviceContext->DrawIndexedInstanced(36, 3, 0, 0, 0);
+}
+
 void DrawFloor()
 {
 	/* Renders the Triangles for the Floor */
@@ -1009,6 +1206,32 @@ void DrawFloor()
 	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
 	// Setting Texture Resource
 	m_pDeviceContext->PSSetShaderResources(NULL, 1, &FloorTexture);
+
+	// Drawing Indexed Quad
+	m_pDeviceContext->DrawIndexed(6, 0, 0);
+}
+
+void DrawStincel()
+{
+	/* Renders the Triangles for the Floor */
+	unsigned int	strides = sizeof(SIMPLE_VERTEX);
+	unsigned int	offsets = 0;
+	// Setting VertexBuffer
+	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &StincelVertexBuffer, &strides, &offsets);
+	// Setting Input Layout
+	m_pDeviceContext->IASetInputLayout(m_pInput);
+	// Setting Index Buffer
+	m_pDeviceContext->IASetIndexBuffer(StincelIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	// Setting Topology
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	/* Setting Vertex Shader */
+	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
+	// Setting Constant Buffer
+	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &StincelConstantBuffer);
+
+	/* Setting Pixel Shader */
+	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
 
 	// Drawing Indexed Quad
 	m_pDeviceContext->DrawIndexed(6, 0, 0);
@@ -1076,7 +1299,7 @@ void DrawSkyBox() {
 	m_pDeviceContext->DrawIndexed(36, 0, 0);
 }
 
-void DrawObject(ObjLoader & model, ID3D11Buffer * vertexBuffer, ID3D11Buffer * indexBuffer, ID3D11Buffer * constantBuffer, ID3D11ShaderResourceView * texture)
+void DrawObject(ObjLoader & model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture)
 {
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
@@ -1106,8 +1329,16 @@ void DrawObject(ObjLoader & model, ID3D11Buffer * vertexBuffer, ID3D11Buffer * i
 // Functions: Key Presses
 //----------------------------------------------------------------------------------------------------------
 void CameraMovement() {
+
+	#pragma region CubeRelated
+	// Inlarge Cube
+	if (GetAsyncKeyState('C') & 0x1) { cubeverts++; SetCube(); }
+	// Reset Cube
+	if (GetAsyncKeyState('V') & 0x1) { cubeverts = 0; SetCube(); }
+	#pragma endregion
+
 	// Reset Camera
-	if (GetAsyncKeyState('R')) { ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); }
+	if (GetAsyncKeyState('R')) { ViewMatrix = ViewMatrix2; }
 
 	// ViewPort/Camera Fly Forward
 	if (GetAsyncKeyState('Q')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, -0.01f)); }

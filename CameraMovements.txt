@@ -55,5 +55,6 @@ H   = Down
 
 
 
-because i have it has a button
+because I have it has a button
 C = Cube Grows
+V = Reset Cube

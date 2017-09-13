@@ -17,6 +17,7 @@
 #include <memory.h>
 #include <tchar.h>
 #include <iostream>
+#include <thread>
 #include <ctime>
 #include <vector>
 #include <d3d11.h>
