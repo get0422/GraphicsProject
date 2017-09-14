@@ -117,9 +117,9 @@ int SpotCount					= 0;
 float Zoom						= 2;
 float NearPlane					= 0.01;
 float FarPlane					= 300;
+int cubeverts					= 0;
 
 // For Testing
-int cubeverts  = 0;
 
 
 #pragma endregion
