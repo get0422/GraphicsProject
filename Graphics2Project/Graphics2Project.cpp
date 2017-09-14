@@ -81,7 +81,7 @@ Lighting Lights[3];
 XMMATRIX						LightMatrix;
 ID3D11Buffer*					LightConstantBuffer		= nullptr;
 
-// Need For Skybox
+// Need For Skybox 1
 XMMATRIX						SkyBoxMatrix;
 ID3D11Buffer*					SkyBoxVertexBuffer		= nullptr;
 ID3D11Buffer*					SkyBoxIndexBuffer		= nullptr;
@@ -98,28 +98,52 @@ D3D_FEATURE_LEVEL				m_FeatureLevel;
 D3D11_VIEWPORT					m_ViewPort;
 
 // Needed For Everything
-XMMATRIX						WorldMatrix;
-XMMATRIX						ViewMatrix;
-XMMATRIX						ViewMatrix2;
-XMMATRIX						ProjectionMatrix;
+XMMATRIX			WorldMatrix;
+XMMATRIX			ViewMatrix;
+XMMATRIX			ViewMatrix2;
+XMMATRIX			ProjectionMatrix;
 
 // View Martix Vectors
-XMVECTOR Eye					= XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
-XMVECTOR Focus					= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-XMVECTOR Up						= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-XMVECTOR ResetEye				= Eye;
+XMVECTOR Eye		= XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
+XMVECTOR Focus		= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+XMVECTOR Up			= XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+XMVECTOR ResetEye	= Eye;
 
 // Moving Light
-int DirectionCount				= 0;
-int SpotCount					= 0;
+int DirectionCount	= 0;
+int SpotCount		= 0;
 
 // Moving Camera (Zoom/Near/Far)
-float Zoom						= 2;
-float NearPlane					= 0.01;
-float FarPlane					= 300;
-int cubeverts					= 0;
+float Zoom		= 2;
+float NearPlane	= 0.01;
+float FarPlane	= 300;
+
+// Change Size of Cube
+int cubeverts = 0;
+
+// Swap Scenes 
+int SwapSceneInt = 0;
+
 
 // For Testing
+ID3D11RenderTargetView*			RenderTemp				= nullptr;
+IDXGISwapChain*					SwapTemp				= nullptr;
+ID3D11Device*					DeviceTemp				= nullptr;
+ID3D11DeviceContext*			DeviceContextTemp		= nullptr;
+ID3D11Resource*					BackBufferTemp			= nullptr;
+ID3D11InputLayout*				InputTemp				= nullptr;
+ID3D11VertexShader* 			SkyBoxVertexShaderTemp	= nullptr;
+ID3D11PixelShader*				SkyBoxPixelShaderTemp	= nullptr;
+ID3D11DepthStencilView*			DepthStencilTemp		= nullptr;
+ID3D11SamplerState*				SamplerStateTemp		= nullptr;
+ID3D11Texture2D*				Texture2DTemp			= nullptr;
+
+// Need For Skybox 2
+XMMATRIX						SkyBoxMatrix2;
+ID3D11Buffer*					SkyBoxVertexBuffer2		= nullptr;
+ID3D11Buffer*					SkyBoxIndexBuffer2		= nullptr;
+ID3D11Buffer*					SkyBoxConstantBuffer2	= nullptr;
+ID3D11ShaderResourceView*		SkyBoxTexture2			= nullptr;
 
 
 #pragma endregion
@@ -138,18 +162,18 @@ void Shutdown();
 bool Run();
 void SetCube();
 void SetFloorAndGeometry();
-void SetSkyBox();
+void SetSkyBox(ID3D11Device* &device, const wchar_t* fileName, ID3D11ShaderResourceView* &texture, ID3D11Buffer* &vertexBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer);
 void DrawCube();
 void DrawFloor();
 void DrawGeometry();
-void DrawSkyBox();
+void DrawSkyBox(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader);
 void DrawInstancedCube();
 void CameraMovement();
 void LightMovment();
 void SetStincel();
 void DrawStincel();
-void VertexIndexConstBuffers(const char * filename, ObjLoader & model, ID3D11Buffer *& vertbuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *& world);
-void DrawObject(ObjLoader & model, ID3D11Buffer * vertexbuffer, ID3D11Buffer * indexbuffer, ID3D11Buffer * worldbuffer, ID3D11ShaderResourceView * texture);
+void LoadandSetObject(const char * filename, ObjLoader & model, ID3D11Buffer* &vertbuffer, ID3D11Buffer* &indexbuffer, ID3D11Buffer* &world, ID3D11Device* &device);
+void DrawObject(ObjLoader &model, ID3D11Buffer* vertexbuffer, ID3D11Buffer* indexbuffer, ID3D11Buffer* worldbuffer, ID3D11ShaderResourceView* texture);
 
 // Microsoft::WRL::ComPtr<var> name;
 #pragma endregion
@@ -386,6 +410,7 @@ HRESULT Initialize() {
 	descDSV.Texture2D.MipSlice	= NULL;
 	m_pDevice->CreateDepthStencilView(m_pTexture2D, &descDSV, &m_pDepthStencil);
 
+
 	// Initializing the Viewport
 	m_ViewPort.Width	= static_cast<float>(width);
 	m_ViewPort.Height	= static_cast<float>(height);
@@ -394,13 +419,34 @@ HRESULT Initialize() {
 	m_ViewPort.TopLeftX = 0;
 	m_ViewPort.TopLeftY = 0;
 
-	// Setting Indexed Geometry
+
+////// For Scene 2 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
+		NULL, D3D11_SDK_VERSION, &swapdesc, &SwapTemp, &DeviceTemp, &m_FeatureLevel, &DeviceContextTemp);
+
+	// TODO: PART 1 STEP 4
+	SwapTemp->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&BackBufferTemp));
+	DeviceTemp->CreateRenderTargetView(BackBufferTemp, NULL, &RenderTemp);
+
+	DeviceTemp->CreateTexture2D(&texturedesc, NULL, &Texture2DTemp);
+
+	DeviceTemp->CreateDepthStencilView(Texture2DTemp, &descDSV, &DepthStencilTemp);
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+	// Setting Indexed Geometry For Scene 1
 	SetCube();
 	SetFloorAndGeometry();
-	SetSkyBox();
-
+	SetSkyBox(m_pDevice, L"files/SkyboxOcean.dds", SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer);
 	// Setting Onject
-	VertexIndexConstBuffers("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer);
+	LoadandSetObject("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, m_pDevice);
+
+
+	// Setting Indexed Geometry for Scene 2
+	SetSkyBox(DeviceTemp, L"files/HW_Blue.dds", SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2);
+
+
+
 	
 	// Loading Indexed Geometry Textures
 	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTexture);
@@ -410,8 +456,6 @@ HRESULT Initialize() {
 	// Loading Object Textures 
 	CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);
 
-	// Loading SkyBox Texture
-	CreateDDSTextureFromFile(m_pDevice, L"files/SkyboxOcean.dds", NULL, &SkyBoxTexture);
 
 	/* Setting Lighting */
 	ZeroMemory(&Lights, sizeof(Lighting) * 3);
@@ -452,15 +496,21 @@ HRESULT Initialize() {
 	sampDesc.MinLOD			= 0;
 	sampDesc.MaxLOD			= D3D11_FLOAT32_MAX;
 	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
+	DeviceTemp->CreateSamplerState(&sampDesc, &SamplerStateTemp);
 
 
-	// Decleraing Shaders
+
+	// Decleraing Shaders for Scene 1
 	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
 	m_pDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &m_pPixelShader);
 	m_pDevice->CreateGeometryShader(Trivial_GS, sizeof(Trivial_GS), NULL, &m_pGeometryShader);
 	m_pDevice->CreateVertexShader(GS_VS, sizeof(GS_VS), NULL, &m_pGeometryVertexShader);
 	m_pDevice->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &m_pSkyBoxPixelShader);
 	m_pDevice->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &m_pSkyBoxVertexShader);
+
+	// Decleraing Shaders for Scene 2
+	DeviceTemp->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SkyBoxPixelShaderTemp);
+	DeviceTemp->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &SkyBoxVertexShaderTemp);
 
 
 
@@ -477,6 +527,7 @@ HRESULT Initialize() {
 
 	// Creating the Input Layout
 	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
+	DeviceTemp->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &InputTemp);
 
 	// Initializing the world matrix
 	WorldMatrix		= XMMatrixIdentity();
@@ -490,6 +541,8 @@ HRESULT Initialize() {
 	PryamidMatrix	= XMMatrixTranslation(5, -0.5f, 15.0f);
 
 	GeometryMatrix = XMMatrixIdentity();
+
+	SkyBoxMatrix = XMMatrixIdentity();
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
@@ -516,6 +569,14 @@ bool Run() {
 	t = (timeCur - timeStart) / 1000.0f;
 
 	//Test Stuff
+	if (GetAsyncKeyState('Z') & 0x1) { 
+		SwapSceneInt++; 
+		if (SwapSceneInt == 1) {
+			ViewMatrix = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix2 = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
+		}
+	}
+	if (GetAsyncKeyState('X') & 0x1) { SwapSceneInt = 0; ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up); ViewMatrix2 = XMMatrixLookAtLH(Eye, Focus, Up); }
 
 	// Light Direction/Position Movement
 	LightMovment();
@@ -523,88 +584,122 @@ bool Run() {
 	// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
 	CameraMovement();
 
-	// Setting Target View
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
+	if (SwapSceneInt == 0) {
+		#pragma region Scene1
+		// Setting Target View
+		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
 
-	// Setting Viewport
-	m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
+		// Setting Viewport
+		m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
+		// Clearing Back Buffer
+		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
 
-	// Setting Sampler State
-	m_pDeviceContext->PSSetSamplers(NULL, 1, &m_pSamplerState);
+		// Setting Sampler State
+		m_pDeviceContext->PSSetSamplers(NULL, 1, &m_pSamplerState);
 
-	// Setting Light Buffer
-	m_pDeviceContext->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer);
+		// Setting Light Buffer
+		m_pDeviceContext->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer);
 
-	// Rotating Cube
-	//CubeMatrix = XMMatrixRotationY(t);
-	if (cubeverts < 15) {
-		CubeMatrix = XMMatrixMultiply(XMMatrixRotationY(t), XMMatrixTranslation(0, 0 + cubeverts, 0));
+		// Rotating Cube
+		//CubeMatrix = XMMatrixRotationY(t);
+		if (cubeverts < 15) {
+			CubeMatrix = XMMatrixMultiply(XMMatrixRotationY(t), XMMatrixTranslation(0, 0 + cubeverts, 0));
+		}
+
+		// Clearing Depth Buffer
+		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, NULL);
+
+		// Update variables
+		ConstantMatrix constantM;
+		constantM.ObjectMatrix = XMMatrixTranspose(CubeMatrix);
+		constantM.View = XMMatrixTranspose(ViewMatrix);
+		constantM.Projection = XMMatrixTranspose(ProjectionMatrix);
+		m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, NULL, NULL, &constantM, NULL, NULL);
+
+		ConstantMatrix constantPrymid;
+		constantPrymid.ObjectMatrix = XMMatrixTranspose(PryamidMatrix);
+		constantPrymid.View = XMMatrixTranspose(ViewMatrix);
+		constantPrymid.Projection = XMMatrixTranspose(ProjectionMatrix);
+		m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, NULL, NULL, &constantPrymid, NULL, NULL);
+
+		ConstantMatrix constantFloor;
+		constantFloor.ObjectMatrix = XMMatrixTranspose(FloorMatrix);
+		constantFloor.View = XMMatrixTranspose(ViewMatrix);
+		constantFloor.Projection = XMMatrixTranspose(ProjectionMatrix);
+		m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
+
+		ConstantMatrix constantGeometry;
+		constantGeometry.ObjectMatrix = XMMatrixTranspose(GeometryMatrix);
+		constantGeometry.View = XMMatrixTranspose(ViewMatrix);
+		constantGeometry.Projection = XMMatrixTranspose(ProjectionMatrix);
+		m_pDeviceContext->UpdateSubresource(GeometryConstantBuffer, NULL, NULL, &constantGeometry, NULL, NULL);
+
+		ConstantMatrix constantSkyBox;
+		constantSkyBox.ObjectMatrix = XMMatrixTranspose(SkyBoxMatrix);
+		constantSkyBox.View = XMMatrixTranspose(ViewMatrix);
+		constantSkyBox.Projection = XMMatrixTranspose(ProjectionMatrix);
+		m_pDeviceContext->UpdateSubresource(SkyBoxConstantBuffer, NULL, NULL, &constantSkyBox, NULL, NULL);
+
+		Lighting constantLight[3];
+		// Spot Light
+		constantLight[0].Color = Lights[0].Color;
+		constantLight[0].Direction = Lights[0].Direction;
+		constantLight[0].Position = Lights[0].Position;
+		constantLight[0].Radius = Lights[0].Radius;
+		// Point Light
+		constantLight[1].Color = Lights[1].Color;
+		constantLight[1].Position = Lights[1].Position;
+		constantLight[1].Radius = Lights[1].Radius;
+		// Directional Light
+		constantLight[2].Color = Lights[2].Color;
+		constantLight[2].Direction = Lights[2].Direction;
+
+		// Updating the Light Buffer
+		m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
+
+		// Drawing Objects
+		DrawSkyBox(m_pDeviceContext, SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer, m_pInput, m_pSkyBoxVertexShader, m_pSkyBoxPixelShader);
+		DrawFloor();
+		DrawGeometry();
+		DrawCube();
+		DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);
+
+		/* Presenting our back buffer to our front buffer */
+		m_pSwapChain->Present(0, 0);
+		#pragma endregion
 	}
+	else if (SwapSceneInt == 1) {
+		#pragma region Scene2
+		// Setting Target View
+		DeviceContextTemp->OMSetRenderTargets(1, &RenderTemp, DepthStencilTemp);
 
-	// Clearing Back Buffer
-	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
+		// Setting Viewport
+		DeviceContextTemp->RSSetViewports(1, &m_ViewPort);
+		// Clearing Back Buffer
+		DeviceContextTemp->ClearRenderTargetView(RenderTemp, Colors::DarkBlue);
 
-	// Clearing Depth Buffer
-	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, NULL);
+		// Setting Sampler State
+		DeviceContextTemp->PSSetSamplers(NULL, 1, &SamplerStateTemp);
+
+		// Clearing Depth Buffer
+		DeviceContextTemp->ClearDepthStencilView(DepthStencilTemp, D3D11_CLEAR_DEPTH, 1.0f, NULL);
+
+		ConstantMatrix constantSkyBox;
+		constantSkyBox.ObjectMatrix = XMMatrixTranspose(SkyBoxMatrix);
+		constantSkyBox.View = XMMatrixTranspose(ViewMatrix);
+		constantSkyBox.Projection = XMMatrixTranspose(ProjectionMatrix);
+		DeviceContextTemp->UpdateSubresource(SkyBoxConstantBuffer2, NULL, NULL, &constantSkyBox, NULL, NULL);
+
+		// Drawing Objects
+		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
+
+
+
+		/* Presenting our back buffer to our front buffer */
+		SwapTemp->Present(0, 0);
+		#pragma endregion
+	}
 	
-	// Update variables
-	ConstantMatrix constantM;
-	constantM.ObjectMatrix				= XMMatrixTranspose(CubeMatrix);
-	constantM.View						= XMMatrixTranspose(ViewMatrix);
-	constantM.Projection				= XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, NULL, NULL, &constantM, NULL, NULL);
-
-	ConstantMatrix constantPrymid;
-	constantPrymid.ObjectMatrix			= XMMatrixTranspose(PryamidMatrix);
-	constantPrymid.View					= XMMatrixTranspose(ViewMatrix);
-	constantPrymid.Projection			= XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, NULL, NULL, &constantPrymid, NULL, NULL);
-
-	ConstantMatrix constantFloor;
-	constantFloor.ObjectMatrix			= XMMatrixTranspose(FloorMatrix);
-	constantFloor.View					= XMMatrixTranspose(ViewMatrix);
-	constantFloor.Projection			= XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
-
-	ConstantMatrix constantGeometry;
-	constantGeometry.ObjectMatrix = XMMatrixTranspose(GeometryMatrix);
-	constantGeometry.View = XMMatrixTranspose(ViewMatrix);
-	constantGeometry.Projection = XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(GeometryConstantBuffer, NULL, NULL, &constantGeometry, NULL, NULL);
-
-	ConstantMatrix constantSkyBox;
-	constantSkyBox.ObjectMatrix = XMMatrixTranspose(GeometryMatrix);
-	constantSkyBox.View = XMMatrixTranspose(ViewMatrix);
-	constantSkyBox.Projection = XMMatrixTranspose(ProjectionMatrix);
-	m_pDeviceContext->UpdateSubresource(SkyBoxConstantBuffer, NULL, NULL, &constantSkyBox, NULL, NULL);
-
-	Lighting constantLight[3];
-	// Spot Light
-	constantLight[0].Color		= Lights[0].Color;
-	constantLight[0].Direction  = Lights[0].Direction;
-	constantLight[0].Position	= Lights[0].Position;
-	constantLight[0].Radius		= Lights[0].Radius;
-	// Point Light
-	constantLight[1].Color		= Lights[1].Color;
-	constantLight[1].Position	= Lights[1].Position;
-	constantLight[1].Radius		= Lights[1].Radius;
-	// Directional Light
-	constantLight[2].Color		= Lights[2].Color;
-	constantLight[2].Direction	= Lights[2].Direction;
-
-	// Updating the Light Buffer
-	m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
-
-	// Drawing Objects
-	DrawSkyBox();
-	DrawFloor();
-	DrawGeometry();
-	DrawCube();
-	DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);
-
-	/* Presenting our back buffer to our front buffer */
-	m_pSwapChain->Present(0, 0);
-
 	return true;
 }
 
@@ -613,6 +708,7 @@ bool Run() {
 // Clean/Release the Onjects we have Created in Memory
 //----------------------------------------------------------------------------------------------------------
 void Shutdown() {
+	// Scene 1
 	if (m_pSwapChain) { m_pSwapChain->Release(); }
 	if (m_pDevice) { m_pDevice->Release(); }
 	if (m_pRenderTargetView) { m_pRenderTargetView->Release(); }
@@ -655,6 +751,24 @@ void Shutdown() {
 	if (m_pPixelShader) { m_pPixelShader->Release(); }
 	if (m_pGeometryVertexShader) { m_pGeometryVertexShader->Release(); }
 	if (m_pGeometryShader) { m_pGeometryShader->Release(); }
+
+
+	// Scene 2
+	if (RenderTemp) { RenderTemp->Release(); }
+	if (SwapTemp) { SwapTemp->Release(); }
+	if (DeviceTemp) { DeviceTemp->Release(); }
+	if (DeviceContextTemp) { DeviceContextTemp->Release(); }
+	if (BackBufferTemp) { BackBufferTemp->Release(); }
+	if (InputTemp) { InputTemp->Release(); }
+	if (DepthStencilTemp) { DepthStencilTemp->Release(); }
+	if (SamplerStateTemp) { SamplerStateTemp->Release(); }
+	if (Texture2DTemp) { Texture2DTemp->Release(); }
+	if (SkyBoxVertexShaderTemp) { SkyBoxVertexShaderTemp->Release(); }
+	if (SkyBoxPixelShaderTemp) { SkyBoxPixelShaderTemp->Release(); }
+	if (SkyBoxVertexBuffer2) { SkyBoxVertexBuffer2->Release(); }
+	if (SkyBoxIndexBuffer2) { SkyBoxIndexBuffer2->Release(); }
+	if (SkyBoxConstantBuffer2) { SkyBoxConstantBuffer2->Release(); }
+	if (SkyBoxTexture2) { SkyBoxTexture2->Release(); }
 }
 
 
@@ -701,14 +815,14 @@ void SetCube() {
 			#endif // 0
 
 			#if ColorCube
-							{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-							{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-							{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-							{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-							{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-							{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-							{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-							{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 			#endif // 0
 			#pragma endregion
 		};
@@ -839,7 +953,6 @@ void SetCube() {
 	// Creating Index
 	DWORD32 Indexes[] = {
 		#pragma region CubeIndexs
-		#if TextureCube
 		3,1,0,
 		2,1,3,
 
@@ -857,27 +970,6 @@ void SetCube() {
 
 		22,20,21,
 		23,20,22
-		#endif // 0
-
-		#if ColorCube
-		3,1,0,
-		2,1,3,
-
-		0,5,4,
-		1,5,0,
-
-		3,4,7,
-		0,4,3,
-
-		1,6,5,
-		2,6,1,
-
-		2,7,6,
-		3,7,2,
-
-		6,4,5,
-		7,4,6,
-		#endif // 0
 		#pragma endregion
 	};
 
@@ -901,8 +993,8 @@ void SetFloorAndGeometry()
 	// Creating Floor Vertex
 	SIMPLE_VERTEX Vertex[] = {
 		{ XMFLOAT4(-30.0f, -0.55f, -30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(30.0f, -0.55f, -30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(30.0f, -0.55f,  30.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(30.0f, -0.55f, -30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(30.0f, -0.55f,  30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 		{ XMFLOAT4(-30.0f, -0.55f,  30.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 5.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 	};
 
@@ -943,11 +1035,10 @@ void SetFloorAndGeometry()
 
 }
 
-void SetSkyBox()
+void SetSkyBox(ID3D11Device* &device, const wchar_t* fileName, ID3D11ShaderResourceView* &texture, ID3D11Buffer* &vertexBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer)
 {
 	SIMPLE_VERTEX Vertex[] = {
 		#pragma region SkyVerts
-
 		{ XMFLOAT4(-100.0f, -100.0f, -100.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 		{ XMFLOAT4(100.0f, -100.0f, -100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 		{ XMFLOAT4(100.0f, -100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
@@ -993,11 +1084,11 @@ void SetSkyBox()
 	data.pSysMem = Vertex;
 
 	// Creating Vertex Buffer
-	m_pDevice->CreateBuffer(&buffdesc, &data, &SkyBoxVertexBuffer);
+	device->CreateBuffer(&buffdesc, &data, &vertexBuffer);
 
 	// Creating Index
 	DWORD32 Indexes[] = {
-		#pragma region CubeIndexs
+		#pragma region SkyIndexs
 		3,1,0,
 		2,1,3,
 
@@ -1022,13 +1113,15 @@ void SetSkyBox()
 	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	buffdesc.ByteWidth = sizeof(DWORD32) * 36;
 	data.pSysMem = Indexes;
-	m_pDevice->CreateBuffer(&buffdesc, &data, &SkyBoxIndexBuffer);
+	device->CreateBuffer(&buffdesc, &data, &indexBuffer);
 
 	// Initializing/Creating Constant Buffer
 	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	buffdesc.ByteWidth = sizeof(ConstantMatrix);
-	m_pDevice->CreateBuffer(&buffdesc, nullptr, &SkyBoxConstantBuffer);
+	device->CreateBuffer(&buffdesc, nullptr, &constantBuffer);
 
+	// Loading SkyBox Texture
+	CreateDDSTextureFromFile(device, fileName, NULL, &texture);
 }
 
 void SetStincel()
@@ -1074,7 +1167,7 @@ void SetStincel()
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &StincelConstantBuffer);
 }
 
-void VertexIndexConstBuffers(const char* fileName, ObjLoader &model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer)
+void LoadandSetObject(const char* fileName, ObjLoader &model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer, ID3D11Device* &device)
 {
 	ObjLoader mesh;
 	mesh.Load(fileName);
@@ -1107,18 +1200,18 @@ void VertexIndexConstBuffers(const char* fileName, ObjLoader &model, ID3D11Buffe
 	objsubResource.pSysMem = Vertex;
 
 	// Creating Vertex Buffer
-	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &vertBuffer);
+	device->CreateBuffer(&objVertbuffdesc, &objsubResource, &vertBuffer);
 
 	// Initializing/Creating Index Buffer
 	objVertbuffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	objVertbuffdesc.ByteWidth = sizeof(DWORD32) * objIcount;
 	objsubResource.pSysMem = Indexes;
-	m_pDevice->CreateBuffer(&objVertbuffdesc, &objsubResource, &indexBuffer);
+	device->CreateBuffer(&objVertbuffdesc, &objsubResource, &indexBuffer);
 
 	// Initializing/Creating Constant Buffer
 	objVertbuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	objVertbuffdesc.ByteWidth = sizeof(ConstantMatrix);
-	m_pDevice->CreateBuffer(&objVertbuffdesc, NULL, &constantBuffer);
+	device->CreateBuffer(&objVertbuffdesc, NULL, &constantBuffer);
 
 	delete[] Vertex;
 	delete[] Indexes;
@@ -1272,31 +1365,31 @@ void DrawGeometry() {
 	m_pDeviceContext->GSSetShader(NULL, NULL, NULL);
 }
 
-void DrawSkyBox() {
+void DrawSkyBox(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader) {
 	/* Renders the Triangles for the SkyBox */
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &SkyBoxVertexBuffer, &strides, &offsets);
+	deviceContext->IASetVertexBuffers(NULL, 1, &vertexBuffer, &strides, &offsets);
 	// Setting Input Layout
-	m_pDeviceContext->IASetInputLayout(m_pInput);
+	deviceContext->IASetInputLayout(input);
 	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(SkyBoxIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	deviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, NULL);
 	// Setting Topology
-	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(m_pSkyBoxVertexShader, NULL, NULL);
+	deviceContext->VSSetShader(vertexShader, NULL, NULL);
 	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &SkyBoxConstantBuffer);
+	deviceContext->VSSetConstantBuffers(NULL, 1, &constantBuffer);
 
 	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(m_pSkyBoxPixelShader, NULL, NULL);
+	deviceContext->PSSetShader(pixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(NULL, 1, &SkyBoxTexture);
+	deviceContext->PSSetShaderResources(NULL, 1, &texture);
 
 	// Drawing Indexed SkyBox
-	m_pDeviceContext->DrawIndexed(36, 0, 0);
+	deviceContext->DrawIndexed(36, 0, 0);
 }
 
 void DrawObject(ObjLoader & model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture)
