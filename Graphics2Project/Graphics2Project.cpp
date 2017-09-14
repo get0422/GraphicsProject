@@ -95,13 +95,19 @@ ID3D11Buffer*					InstanceBuffer			= nullptr;
 D3D_FEATURE_LEVEL				m_FeatureLevel;
 
 // Needed to Make the Screen
-D3D11_VIEWPORT					m_ViewPort;
+D3D11_VIEWPORT					m_ViewPort[4];
 
 // Needed For Everything
 XMMATRIX			WorldMatrix;
 XMMATRIX			ViewMatrix;
+XMMATRIX			ViewMatrixsSub;
 XMMATRIX			ViewMatrix2;
+XMMATRIX			ViewMatrix3;
+XMMATRIX			ViewMatrix4;
 XMMATRIX			ProjectionMatrix;
+XMMATRIX			ProjectionMatrix2;
+XMMATRIX			ProjectionMatrix3;
+XMMATRIX			ProjectionMatrix4;
 
 // View Martix Vectors
 XMVECTOR Eye		= XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
@@ -124,6 +130,8 @@ int cubeverts = 0;
 // Swap Scenes 
 int SwapSceneInt = 0;
 
+// Swap Cameras 
+int SwapCameraInt = 0;
 
 // For Testing
 ID3D11RenderTargetView*			RenderTemp				= nullptr;
@@ -168,12 +176,14 @@ void DrawFloor();
 void DrawGeometry();
 void DrawSkyBox(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader);
 void DrawInstancedCube();
-void CameraMovement();
+void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix);
 void LightMovment();
 void SetStincel();
 void DrawStincel();
-void LoadandSetObject(const char * filename, ObjLoader & model, ID3D11Buffer* &vertbuffer, ID3D11Buffer* &indexbuffer, ID3D11Buffer* &world, ID3D11Device* &device);
-void DrawObject(ObjLoader &model, ID3D11Buffer* vertexbuffer, ID3D11Buffer* indexbuffer, ID3D11Buffer* worldbuffer, ID3D11ShaderResourceView* texture);
+void LoadandSetObject(const char * filename, ObjLoader & model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer, ID3D11Device* &device);
+void DrawObject(ObjLoader &model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture);
+void UpdateConstant(XMMATRIX &geometryMatrix, XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix, ID3D11Buffer* &constantBuffer, ID3D11DeviceContext* &deviceContext);
+void SceneManagment();
 
 // Microsoft::WRL::ComPtr<var> name;
 #pragma endregion
@@ -412,12 +422,12 @@ HRESULT Initialize() {
 
 
 	// Initializing the Viewport
-	m_ViewPort.Width	= static_cast<float>(width);
-	m_ViewPort.Height	= static_cast<float>(height);
-	m_ViewPort.MinDepth = 0.0f;
-	m_ViewPort.MaxDepth = 1.0f;
-	m_ViewPort.TopLeftX = 0;
-	m_ViewPort.TopLeftY = 0;
+	m_ViewPort[0].Width	= static_cast<float>(BACKBUFFER_WIDTH);
+	m_ViewPort[0].Height	= static_cast<float>(BACKBUFFER_HEIGHT);
+	m_ViewPort[0].MinDepth = 0.0f;
+	m_ViewPort[0].MaxDepth = 1.0f;
+	m_ViewPort[0].TopLeftX = 0;
+	m_ViewPort[0].TopLeftY = 0;
 
 
 ////// For Scene 2 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -546,11 +556,17 @@ HRESULT Initialize() {
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
-	ViewMatrix2 = XMMatrixLookAtLH(Eye, Focus, Up);
+	ViewMatrixsSub = XMMatrixLookAtLH(Eye, Focus, Up);
+	ViewMatrix2 = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 5.0f, 0.0f), Focus, Up);
+	ViewMatrix3 = XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
+	ViewMatrix4 = XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
 
 	// Initializing the projection matrix
 	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI/Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
-	
+	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	ProjectionMatrix3 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	ProjectionMatrix4 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+
 	return S_OK;
 }
 
@@ -569,32 +585,30 @@ bool Run() {
 	t = (timeCur - timeStart) / 1000.0f;
 
 	//Test Stuff
-	if (GetAsyncKeyState('Z') & 0x1) { 
-		SwapSceneInt++; 
-		if (SwapSceneInt == 1) {
-			ViewMatrix = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrix2 = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
-		}
-		if (SwapSceneInt == 2) {
-			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up); 
-			ViewMatrix2 = XMMatrixLookAtLH(Eye, Focus, Up);
-			SwapSceneInt = 0;
-		}
-	}
 
-	// Light Direction/Position Movement
-	LightMovment();
-
-	// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
-	CameraMovement();
+	// Swap Scenes
+	SceneManagment();
 
 	if (SwapSceneInt == 0) {
 		#pragma region Scene1
+		#pragma region CubeRelated
+		// Inlarge Cube
+		if (GetAsyncKeyState('C') & 0x1) { cubeverts++; SetCube(); }
+		// Reset Cube
+		if (GetAsyncKeyState('V') & 0x1) { cubeverts = 0; SetCube(); }
+		#pragma endregion
+
+		// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+		CameraMovement(ViewMatrix, ProjectionMatrix);
+
+		// Light Direction/Position Movement
+		LightMovment();
+
 		// Setting Target View
 		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
 
 		// Setting Viewport
-		m_pDeviceContext->RSSetViewports(1, &m_ViewPort);
+		m_pDeviceContext->RSSetViewports(1, &m_ViewPort[0]);
 		// Clearing Back Buffer
 		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
 
@@ -614,35 +628,11 @@ bool Run() {
 		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, NULL);
 
 		// Update variables
-		ConstantMatrix constantM;
-		constantM.ObjectMatrix = XMMatrixTranspose(CubeMatrix);
-		constantM.View = XMMatrixTranspose(ViewMatrix);
-		constantM.Projection = XMMatrixTranspose(ProjectionMatrix);
-		m_pDeviceContext->UpdateSubresource(m_pConstantBuffer, NULL, NULL, &constantM, NULL, NULL);
-
-		ConstantMatrix constantPrymid;
-		constantPrymid.ObjectMatrix = XMMatrixTranspose(PryamidMatrix);
-		constantPrymid.View = XMMatrixTranspose(ViewMatrix);
-		constantPrymid.Projection = XMMatrixTranspose(ProjectionMatrix);
-		m_pDeviceContext->UpdateSubresource(PryamidConstantBuffer, NULL, NULL, &constantPrymid, NULL, NULL);
-
-		ConstantMatrix constantFloor;
-		constantFloor.ObjectMatrix = XMMatrixTranspose(FloorMatrix);
-		constantFloor.View = XMMatrixTranspose(ViewMatrix);
-		constantFloor.Projection = XMMatrixTranspose(ProjectionMatrix);
-		m_pDeviceContext->UpdateSubresource(FloorConstantBuffer, NULL, NULL, &constantFloor, NULL, NULL);
-
-		ConstantMatrix constantGeometry;
-		constantGeometry.ObjectMatrix = XMMatrixTranspose(GeometryMatrix);
-		constantGeometry.View = XMMatrixTranspose(ViewMatrix);
-		constantGeometry.Projection = XMMatrixTranspose(ProjectionMatrix);
-		m_pDeviceContext->UpdateSubresource(GeometryConstantBuffer, NULL, NULL, &constantGeometry, NULL, NULL);
-
-		ConstantMatrix constantSkyBox;
-		constantSkyBox.ObjectMatrix = XMMatrixTranspose(SkyBoxMatrix);
-		constantSkyBox.View = XMMatrixTranspose(ViewMatrix);
-		constantSkyBox.Projection = XMMatrixTranspose(ProjectionMatrix);
-		m_pDeviceContext->UpdateSubresource(SkyBoxConstantBuffer, NULL, NULL, &constantSkyBox, NULL, NULL);
+		UpdateConstant(CubeMatrix, ViewMatrix, ProjectionMatrix, m_pConstantBuffer, m_pDeviceContext);
+		UpdateConstant(PryamidMatrix, ViewMatrix, ProjectionMatrix, PryamidConstantBuffer, m_pDeviceContext);
+		UpdateConstant(FloorMatrix, ViewMatrix, ProjectionMatrix, FloorConstantBuffer, m_pDeviceContext);
+		UpdateConstant(GeometryMatrix, ViewMatrix, ProjectionMatrix, GeometryConstantBuffer, m_pDeviceContext);
+		UpdateConstant(SkyBoxMatrix, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer, m_pDeviceContext);
 
 		Lighting constantLight[3];
 		// Spot Light
@@ -674,11 +664,34 @@ bool Run() {
 	}
 	else if (SwapSceneInt == 1) {
 		#pragma region Scene2
+
+		if (GetAsyncKeyState('X') & 0x1) { SwapCameraInt++; }
+
+		if (SwapCameraInt == 0) {
+			// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+			CameraMovement(ViewMatrix, ProjectionMatrix);
+		}
+		else if (SwapCameraInt == 1) {
+			// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+			CameraMovement(ViewMatrix2, ProjectionMatrix2);
+		}
+		else if (SwapCameraInt == 2) {
+			// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+			CameraMovement(ViewMatrix3, ProjectionMatrix3);
+		}
+		else if (SwapCameraInt == 3) {
+			// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+			CameraMovement(ViewMatrix4, ProjectionMatrix4);
+		}
+		else{ SwapCameraInt = 0; }
+
 		// Setting Target View
 		DeviceContextTemp->OMSetRenderTargets(1, &RenderTemp, DepthStencilTemp);
 
+//------- Top Left --------------------------------------------------------------//
 		// Setting Viewport
-		DeviceContextTemp->RSSetViewports(1, &m_ViewPort);
+		DeviceContextTemp->RSSetViewports(1, &m_ViewPort[0]);
+
 		// Clearing Back Buffer
 		DeviceContextTemp->ClearRenderTargetView(RenderTemp, Colors::DarkBlue);
 
@@ -688,15 +701,43 @@ bool Run() {
 		// Clearing Depth Buffer
 		DeviceContextTemp->ClearDepthStencilView(DepthStencilTemp, D3D11_CLEAR_DEPTH, 1.0f, NULL);
 
-		ConstantMatrix constantSkyBox;
-		constantSkyBox.ObjectMatrix = XMMatrixTranspose(SkyBoxMatrix);
-		constantSkyBox.View = XMMatrixTranspose(ViewMatrix);
-		constantSkyBox.Projection = XMMatrixTranspose(ProjectionMatrix);
-		DeviceContextTemp->UpdateSubresource(SkyBoxConstantBuffer2, NULL, NULL, &constantSkyBox, NULL, NULL);
+		// Update variables
+		UpdateConstant(SkyBoxMatrix, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer2, DeviceContextTemp);
 
 		// Drawing Objects
 		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
 
+
+//------ Top Right ---------------------------------------------------------------//
+		// Setting Viewport
+		DeviceContextTemp->RSSetViewports(1, &m_ViewPort[1]);
+
+		// Update variables
+		UpdateConstant(SkyBoxMatrix, ViewMatrix2, ProjectionMatrix2, SkyBoxConstantBuffer2, DeviceContextTemp);
+
+		// Drawing Objects
+		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
+
+//------ Bottom Left ---------------------------------------------------------------//
+		// Setting Viewport
+		DeviceContextTemp->RSSetViewports(1, &m_ViewPort[2]);
+
+		// Update variables
+		UpdateConstant(SkyBoxMatrix, ViewMatrix3, ProjectionMatrix3, SkyBoxConstantBuffer2, DeviceContextTemp);
+
+		// Drawing Objects
+		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
+
+
+//------ Bottom Right ---------------------------------------------------------------//
+		// Setting Viewport
+		DeviceContextTemp->RSSetViewports(1, &m_ViewPort[3]);
+
+		// Update variables
+		UpdateConstant(SkyBoxMatrix, ViewMatrix4, ProjectionMatrix4, SkyBoxConstantBuffer2, DeviceContextTemp);
+
+		// Drawing Objects
+		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
 
 
 		/* Presenting our back buffer to our front buffer */
@@ -1421,44 +1462,45 @@ void DrawObject(ObjLoader & model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* ind
 	m_pDeviceContext->DrawIndexed(model.GetIndex().size(), 0, 0);
 }
 
+void UpdateConstant(XMMATRIX &geometryMatrix, XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix, ID3D11Buffer* &constantBuffer, ID3D11DeviceContext* &deviceContext) {
+	ConstantMatrix constantM;
+	constantM.ObjectMatrix = XMMatrixTranspose(geometryMatrix);
+	constantM.View = XMMatrixTranspose(viewMatrix);
+	constantM.Projection = XMMatrixTranspose(projectionMatrix);
+	deviceContext->UpdateSubresource(constantBuffer, NULL, NULL, &constantM, NULL, NULL);
+}
+
 
 //----------------------------------------------------------------------------------------------------------
 // Functions: Key Presses
 //----------------------------------------------------------------------------------------------------------
-void CameraMovement() {
-
-	#pragma region CubeRelated
-	// Inlarge Cube
-	if (GetAsyncKeyState('C') & 0x1) { cubeverts++; SetCube(); }
-	// Reset Cube
-	if (GetAsyncKeyState('V') & 0x1) { cubeverts = 0; SetCube(); }
-	#pragma endregion
+void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix) {
 
 	// Reset Camera
-	if (GetAsyncKeyState('R')) { ViewMatrix = ViewMatrix2; }
+	if (GetAsyncKeyState('R')) { viewMatrix = ViewMatrixsSub; }
 
 	// ViewPort/Camera Fly Forward
-	if (GetAsyncKeyState('Q')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, -0.01f)); }
+	if (GetAsyncKeyState('Q')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0, -0.01f)); }
 	// ViewPort/Camera Fly Backward
-	if (GetAsyncKeyState('E')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0, 0.01f)); }
+	if (GetAsyncKeyState('E')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0, 0.01f)); }
 
 	// ViewPort/Camera movement Up
-	if (GetAsyncKeyState('W')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, -0.01f, 0)); }
+	if (GetAsyncKeyState('W')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, -0.01f, 0)); }
 	// ViewPort/Camera movement Down
-	if (GetAsyncKeyState('S')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0, 0.01f, 0)); }
+	if (GetAsyncKeyState('S')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0.01f, 0)); }
 	// ViewPort/Camera movement Right
-	if (GetAsyncKeyState('D')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(-0.01f, 0, 0)); }
+	if (GetAsyncKeyState('D')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(-0.01f, 0, 0)); }
 	// ViewPort/Camera movement Left
-	if (GetAsyncKeyState('A')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixTranslation(0.01f, 0, 0)); }
+	if (GetAsyncKeyState('A')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0.01f, 0, 0)); }
 
 	// ViewPort/Camera rotate Up
-	if (GetAsyncKeyState('I')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(0.001)); }
+	if (GetAsyncKeyState('I')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationX(0.001)); }
 	// ViewPort/Camera rotate Down
-	if (GetAsyncKeyState('K')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationX(-0.001)); }
+	if (GetAsyncKeyState('K')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationX(-0.001)); }
 	// ViewPort/Camera rotate Left
-	if (GetAsyncKeyState('J')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(0.001)); }
+	if (GetAsyncKeyState('J')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationY(0.001)); }
 	// ViewPort/Camera rotate Right
-	if (GetAsyncKeyState('L')) { ViewMatrix = XMMatrixMultiply(ViewMatrix, XMMatrixRotationY(-0.001)); }
+	if (GetAsyncKeyState('L')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationY(-0.001)); }
 
 	// Adjust Near Plane
 	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1) { NearPlane += 0.01f; }
@@ -1474,7 +1516,7 @@ void CameraMovement() {
 	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1) { if (Zoom > 1.1) { Zoom -= 0.05; } }
 
 	// Initializing the projection matrix
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	projectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
 }
 
 void LightMovment() {
@@ -1547,3 +1589,57 @@ void LightMovment() {
 	if (GetAsyncKeyState('0')) { Lights[1].Position.z += 0.005; }
 }
 
+void SceneManagment() {
+	if (GetAsyncKeyState('Z') & 0x1) {
+		SwapSceneInt++;
+		if (SwapSceneInt == 1) {
+			ViewMatrix = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrixsSub = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
+
+			// Initializing the Viewport
+			m_ViewPort[0].Width = static_cast<float>(BACKBUFFER_WIDTH * 0.5);
+			m_ViewPort[0].Height = static_cast<float>(BACKBUFFER_HEIGHT * 0.5);
+			m_ViewPort[0].MinDepth = 0.0f;
+			m_ViewPort[0].MaxDepth = 1.0f;
+			m_ViewPort[0].TopLeftX = 0;
+			m_ViewPort[0].TopLeftY = 0;
+
+			m_ViewPort[1].Width = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
+			m_ViewPort[1].Height = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+			m_ViewPort[1].MinDepth = 0.0f;
+			m_ViewPort[1].MaxDepth = 1.0f;
+			m_ViewPort[1].TopLeftX = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
+			m_ViewPort[1].TopLeftY = 0;
+
+			m_ViewPort[2].Width = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
+			m_ViewPort[2].Height = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+			m_ViewPort[2].MinDepth = 0.0f;
+			m_ViewPort[2].MaxDepth = 1.0f;
+			m_ViewPort[2].TopLeftX = 0;
+			m_ViewPort[2].TopLeftY = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+
+			m_ViewPort[3].Width = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
+			m_ViewPort[3].Height = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+			m_ViewPort[3].MinDepth = 0.0f;
+			m_ViewPort[3].MaxDepth = 1.0f;
+			m_ViewPort[3].TopLeftX = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
+			m_ViewPort[3].TopLeftY = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+
+		}
+		if (SwapSceneInt == 2) {
+			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
+			ViewMatrixsSub = XMMatrixLookAtLH(Eye, Focus, Up);
+
+			// Initializing the Viewport
+			m_ViewPort[0].Width = static_cast<float>(BACKBUFFER_WIDTH);
+			m_ViewPort[0].Height = static_cast<float>(BACKBUFFER_HEIGHT);
+			m_ViewPort[0].MinDepth = 0.0f;
+			m_ViewPort[0].MaxDepth = 1.0f;
+			m_ViewPort[0].TopLeftX = 0;
+			m_ViewPort[0].TopLeftY = 0;
+
+			SwapSceneInt = 0;
+		}
+	}
+
+}
