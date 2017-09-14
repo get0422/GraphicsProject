@@ -53,8 +53,9 @@ Y   = Up
 H   = Down
 
 
+Z = Goes through all the Scenes
 
 
-because I have it has a button
+Because I have it has a button
 C = Cube Grows
 V = Reset Cube

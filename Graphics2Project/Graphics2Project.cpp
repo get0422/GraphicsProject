@@ -575,8 +575,12 @@ bool Run() {
 			ViewMatrix = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
 			ViewMatrix2 = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
 		}
+		if (SwapSceneInt == 2) {
+			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up); 
+			ViewMatrix2 = XMMatrixLookAtLH(Eye, Focus, Up);
+			SwapSceneInt = 0;
+		}
 	}
-	if (GetAsyncKeyState('X') & 0x1) { SwapSceneInt = 0; ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up); ViewMatrix2 = XMMatrixLookAtLH(Eye, Focus, Up); }
 
 	// Light Direction/Position Movement
 	LightMovment();
