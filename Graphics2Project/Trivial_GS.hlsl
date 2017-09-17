@@ -21,25 +21,25 @@ void main(point float4 input[1] : SV_POSITION, inout TriangleStream<INPUT_GEOMET
 	INPUT_GEOMETRY geo[4];
 
 	geo[0].coordinate = float4(-7, -1, 15, 1);
-	geo[0].uvH = float3(1, 1, 0) * 3;
+	geo[0].uvH = float3(1, 1, 0);
 	geo[0].normalH = float4(0, 0, -1, 0);
 	geo[0].worldpos.xyz = geo[0].coordinate.xyz;
 	geo[0].worldpos.w = 1;
 
 	geo[1].coordinate = float4(-7, 8, 15, 1);
-	geo[1].uvH = float3(1, 0, 0) * 3;
+	geo[1].uvH = float3(1, 0, 0);
 	geo[1].normalH = float4(0, 0, -1, 0);
 	geo[1].worldpos.xyz = geo[1].coordinate.xyz;
 	geo[1].worldpos.w = 1;
 
 	geo[2].coordinate = float4(1, -1, 15, 1);
-	geo[2].uvH = float3(0, 1, 0) * 3;
+	geo[2].uvH = float3(0, 1, 0);
 	geo[2].normalH = float4(0, 0, -1, 0);
 	geo[2].worldpos.xyz = geo[2].coordinate.xyz;
 	geo[2].worldpos.w = 1;
 
 	geo[3].coordinate = float4(1, 8, 15, 1);
-	geo[3].uvH = float3(0, 0, 0) * 3;
+	geo[3].uvH = float3(0, 0, 0);
 	geo[3].normalH = float4(0, 0, -1, 0);
 	geo[3].worldpos.xyz = geo[3].coordinate.xyz;
 	geo[3].worldpos.w = 1;

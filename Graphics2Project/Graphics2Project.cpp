@@ -88,6 +88,49 @@ ID3D11Buffer*					SkyBoxIndexBuffer		= nullptr;
 ID3D11Buffer*					SkyBoxConstantBuffer	= nullptr;
 ID3D11ShaderResourceView*		SkyBoxTexture			= nullptr;
 
+//-Scene-2--------------------------------------------------------------------------------
+ID3D11RenderTargetView*			RenderTemp				= nullptr;
+IDXGISwapChain*					SwapTemp				= nullptr;
+ID3D11Device*					DeviceTemp				= nullptr;
+ID3D11DeviceContext*			DeviceContextTemp		= nullptr;
+ID3D11Resource*					BackBufferTemp			= nullptr;
+ID3D11InputLayout*				InputTemp				= nullptr;
+ID3D11VertexShader* 			VertexShaderTemp		= nullptr;
+ID3D11PixelShader*				PixelShaderTemp			= nullptr;
+ID3D11VertexShader* 			SkyBoxVertexShaderTemp	= nullptr;
+ID3D11PixelShader*				SkyBoxPixelShaderTemp	= nullptr;
+ID3D11DepthStencilView*			DepthStencilTemp		= nullptr;
+ID3D11SamplerState*				SamplerStateTemp		= nullptr;
+ID3D11Texture2D*				Texture2DTemp			= nullptr;
+
+// Need For Skybox 2
+XMMATRIX						SkyBoxMatrix2;
+ID3D11Buffer*					SkyBoxVertexBuffer2		= nullptr;
+ID3D11Buffer*					SkyBoxIndexBuffer2		= nullptr;
+ID3D11Buffer*					SkyBoxConstantBuffer2	= nullptr;
+ID3D11ShaderResourceView*		SkyBoxTexture2			= nullptr;
+
+// Need For Wall
+XMMATRIX						WallMatrix;
+ID3D11Buffer*					WallVertexBuffer1		= nullptr;
+ID3D11Buffer*					WallIndexBuffer1		= nullptr;
+ID3D11Buffer*					WallConstantBuffer1		= nullptr;
+ID3D11ShaderResourceView*		WallTexture1			= nullptr;
+ID3D11Buffer*					WallVertexBuffer2		= nullptr;
+ID3D11Buffer*					WallIndexBuffer2		= nullptr;
+ID3D11Buffer*					WallConstantBuffer2		= nullptr;
+ID3D11ShaderResourceView*		WallTexture2			= nullptr;
+ID3D11Buffer*					WallVertexBuffer3		= nullptr;
+ID3D11Buffer*					WallIndexBuffer3		= nullptr;
+ID3D11Buffer*					WallConstantBuffer3		= nullptr;
+ID3D11ShaderResourceView*		WallTexture3			= nullptr;
+ID3D11Buffer*					WallVertexBuffer4		= nullptr;
+ID3D11Buffer*					WallIndexBuffer4		= nullptr;
+ID3D11Buffer*					WallConstantBuffer4		= nullptr;
+ID3D11ShaderResourceView*		WallTexture4			= nullptr;
+//----------------------------------------------------------------------------------------
+
+
 // Instancing
 ID3D11Buffer*					InstanceBuffer			= nullptr;
 
@@ -98,16 +141,19 @@ D3D_FEATURE_LEVEL				m_FeatureLevel;
 D3D11_VIEWPORT					m_ViewPort[4];
 
 // Needed For Everything
-XMMATRIX			WorldMatrix;
-XMMATRIX			ViewMatrix;
-XMMATRIX			ViewMatrixsSub;
-XMMATRIX			ViewMatrix2;
-XMMATRIX			ViewMatrix3;
-XMMATRIX			ViewMatrix4;
-XMMATRIX			ProjectionMatrix;
-XMMATRIX			ProjectionMatrix2;
-XMMATRIX			ProjectionMatrix3;
-XMMATRIX			ProjectionMatrix4;
+XMMATRIX	WorldMatrix;
+XMMATRIX	ViewMatrix;
+XMMATRIX	ViewMatrixSub;
+XMMATRIX	ViewMatrix2;
+XMMATRIX	ViewMatrix2Sub;
+XMMATRIX	ViewMatrix3;
+XMMATRIX	ViewMatrix3Sub;
+XMMATRIX	ViewMatrix4;
+XMMATRIX	ViewMatrix4Sub;
+XMMATRIX	ProjectionMatrix;
+XMMATRIX	ProjectionMatrix2;
+XMMATRIX	ProjectionMatrix3;
+XMMATRIX	ProjectionMatrix4;
 
 // View Martix Vectors
 XMVECTOR Eye		= XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
@@ -134,25 +180,11 @@ int SwapSceneInt = 0;
 int SwapCameraInt = 0;
 
 // For Testing
-ID3D11RenderTargetView*			RenderTemp				= nullptr;
-IDXGISwapChain*					SwapTemp				= nullptr;
-ID3D11Device*					DeviceTemp				= nullptr;
-ID3D11DeviceContext*			DeviceContextTemp		= nullptr;
-ID3D11Resource*					BackBufferTemp			= nullptr;
-ID3D11InputLayout*				InputTemp				= nullptr;
-ID3D11VertexShader* 			SkyBoxVertexShaderTemp	= nullptr;
-ID3D11PixelShader*				SkyBoxPixelShaderTemp	= nullptr;
-ID3D11DepthStencilView*			DepthStencilTemp		= nullptr;
-ID3D11SamplerState*				SamplerStateTemp		= nullptr;
-ID3D11Texture2D*				Texture2DTemp			= nullptr;
-
-// Need For Skybox 2
-XMMATRIX						SkyBoxMatrix2;
-ID3D11Buffer*					SkyBoxVertexBuffer2		= nullptr;
-ID3D11Buffer*					SkyBoxIndexBuffer2		= nullptr;
-ID3D11Buffer*					SkyBoxConstantBuffer2	= nullptr;
-ID3D11ShaderResourceView*		SkyBoxTexture2			= nullptr;
-
+XMMATRIX						CameraView;
+XMMATRIX						CameraProjection;
+ID3D11Texture2D*				CameraTexture2D			= nullptr;
+ID3D11RenderTargetView*			CameraRender			= nullptr;
+ID3D11ShaderResourceView*		CameraResource			= nullptr;
 
 #pragma endregion
 
@@ -169,22 +201,20 @@ HRESULT Initialize();
 void Shutdown();
 bool Run();
 void SetCube();
-void SetFloorAndGeometry();
-void SetSkyBox(ID3D11Device* &device, const wchar_t* fileName, ID3D11ShaderResourceView* &texture, ID3D11Buffer* &vertexBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer);
-void DrawCube();
-void DrawFloor();
-void DrawGeometry();
-void DrawSkyBox(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader);
+void DrawGSGeometry();
 void DrawInstancedCube();
-void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix);
-void LightMovment();
-void SetStincel();
-void DrawStincel();
-void LoadandSetObject(const char * filename, ObjLoader & model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer, ID3D11Device* &device);
-void DrawObject(ObjLoader &model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture);
+void SetFloorAndGeometry();
+void DrawIndexedGeometry(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader, UINT count);
+void SetSkyBox(ID3D11Device* &device, const wchar_t* fileName, ID3D11ShaderResourceView* &texture, ID3D11Buffer* &vertexBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer);
+void SetModel(const char * filename, ObjLoader & model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer, ID3D11Device* &device);
+void DrawModel(ObjLoader &model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader);
 void UpdateConstant(XMMATRIX &geometryMatrix, XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix, ID3D11Buffer* &constantBuffer, ID3D11DeviceContext* &deviceContext);
+
+void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &viewMatrixSub, XMMATRIX &projectionMatrix);
+void LightMovment();
 void SceneManagment();
 
+void SetWall();
 // Microsoft::WRL::ComPtr<var> name;
 #pragma endregion
 
@@ -405,11 +435,8 @@ HRESULT Initialize() {
 	texturedesc.ArraySize			= 1;
 	texturedesc.Format				= DXGI_FORMAT_D24_UNORM_S8_UINT;
 	texturedesc.SampleDesc.Count	= 1;
-	texturedesc.SampleDesc.Quality	= NULL;
 	texturedesc.Usage				= D3D11_USAGE_DEFAULT;
 	texturedesc.BindFlags			= D3D11_BIND_DEPTH_STENCIL;
-	texturedesc.CPUAccessFlags		= NULL;
-	texturedesc.MiscFlags			= NULL;
 	m_pDevice->CreateTexture2D(&texturedesc, NULL, &m_pTexture2D);
 
 	// Create the depth stencil view
@@ -422,8 +449,8 @@ HRESULT Initialize() {
 
 
 	// Initializing the Viewport
-	m_ViewPort[0].Width	= static_cast<float>(BACKBUFFER_WIDTH);
-	m_ViewPort[0].Height	= static_cast<float>(BACKBUFFER_HEIGHT);
+	m_ViewPort[0].Width	= static_cast<float>(width);
+	m_ViewPort[0].Height	= static_cast<float>(height);
 	m_ViewPort[0].MinDepth = 0.0f;
 	m_ViewPort[0].MaxDepth = 1.0f;
 	m_ViewPort[0].TopLeftX = 0;
@@ -441,19 +468,50 @@ HRESULT Initialize() {
 	DeviceTemp->CreateTexture2D(&texturedesc, NULL, &Texture2DTemp);
 
 	DeviceTemp->CreateDepthStencilView(Texture2DTemp, &descDSV, &DepthStencilTemp);
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////CameraTexture
+	D3D11_TEXTURE2D_DESC texturedesc2;
+	ZeroMemory(&texturedesc2, sizeof(texturedesc2));
+	texturedesc2.Width = width;
+	texturedesc2.Height = height;
+	texturedesc2.MipLevels = 1;
+	texturedesc2.ArraySize = 1;
+	texturedesc2.SampleDesc.Count = 1;
+	texturedesc2.Usage = D3D11_USAGE_DEFAULT;
+	texturedesc2.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	texturedesc2.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	m_pDevice->CreateTexture2D(&texturedesc2, NULL, &CameraTexture2D);
 
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+	renderTargetViewDesc.Format = texturedesc2.Format;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+	m_pDevice->CreateRenderTargetView(CameraTexture2D, &renderTargetViewDesc, &CameraRender);
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+	shaderResourceViewDesc.Format = texturedesc2.Format;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+	m_pDevice->CreateShaderResourceView(CameraTexture2D, &shaderResourceViewDesc, &CameraResource);
+
+	SetWall();
 
 	// Setting Indexed Geometry For Scene 1
 	SetCube();
 	SetFloorAndGeometry();
 	SetSkyBox(m_pDevice, L"files/SkyboxOcean.dds", SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer);
 	// Setting Onject
-	LoadandSetObject("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, m_pDevice);
+	SetModel("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, m_pDevice);
 
 
 	// Setting Indexed Geometry for Scene 2
 	SetSkyBox(DeviceTemp, L"files/HW_Blue.dds", SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2);
+	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Circuit.dds", NULL, &WallTexture1);
+	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Ice.dds", NULL, &WallTexture2);
+	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Purple2.dds", NULL, &WallTexture3);
+	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Red2Dark.dds", NULL, &WallTexture4);
 
 
 
@@ -519,6 +577,8 @@ HRESULT Initialize() {
 	m_pDevice->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &m_pSkyBoxVertexShader);
 
 	// Decleraing Shaders for Scene 2
+	DeviceTemp->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VertexShaderTemp);
+	DeviceTemp->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PixelShaderTemp);
 	DeviceTemp->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SkyBoxPixelShaderTemp);
 	DeviceTemp->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &SkyBoxVertexShaderTemp);
 
@@ -553,13 +613,20 @@ HRESULT Initialize() {
 	GeometryMatrix = XMMatrixIdentity();
 
 	SkyBoxMatrix = XMMatrixIdentity();
+	WallMatrix		= XMMatrixIdentity();
+
+	CameraView = XMMatrixLookAtLH(Eye, Focus, Up);
+	CameraProjection = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
-	ViewMatrixsSub = XMMatrixLookAtLH(Eye, Focus, Up);
+	ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
 	ViewMatrix2 = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 5.0f, 0.0f), Focus, Up);
 	ViewMatrix3 = XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
 	ViewMatrix4 = XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
+	ViewMatrix2Sub = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 5.0f, 0.0f), Focus, Up);
+	ViewMatrix3Sub = XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
+	ViewMatrix4Sub = XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
 
 	// Initializing the projection matrix
 	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI/Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
@@ -599,7 +666,7 @@ bool Run() {
 		#pragma endregion
 
 		// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
-		CameraMovement(ViewMatrix, ProjectionMatrix);
+		CameraMovement(ViewMatrix, ViewMatrixSub, ProjectionMatrix);
 
 		// Light Direction/Position Movement
 		LightMovment();
@@ -611,6 +678,9 @@ bool Run() {
 		m_pDeviceContext->RSSetViewports(1, &m_ViewPort[0]);
 		// Clearing Back Buffer
 		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, Colors::DarkCyan);
+
+		// Clearing Back Buffer
+		m_pDeviceContext->ClearRenderTargetView(CameraRender, Colors::Blue);
 
 		// Setting Sampler State
 		m_pDeviceContext->PSSetSamplers(NULL, 1, &m_pSamplerState);
@@ -631,9 +701,8 @@ bool Run() {
 		UpdateConstant(CubeMatrix, ViewMatrix, ProjectionMatrix, m_pConstantBuffer, m_pDeviceContext);
 		UpdateConstant(PryamidMatrix, ViewMatrix, ProjectionMatrix, PryamidConstantBuffer, m_pDeviceContext);
 		UpdateConstant(FloorMatrix, ViewMatrix, ProjectionMatrix, FloorConstantBuffer, m_pDeviceContext);
-		UpdateConstant(GeometryMatrix, ViewMatrix, ProjectionMatrix, GeometryConstantBuffer, m_pDeviceContext);
 		UpdateConstant(SkyBoxMatrix, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer, m_pDeviceContext);
-
+		
 		Lighting constantLight[3];
 		// Spot Light
 		constantLight[0].Color = Lights[0].Color;
@@ -652,11 +721,32 @@ bool Run() {
 		m_pDeviceContext->UpdateSubresource(LightConstantBuffer, NULL, NULL, &constantLight, NULL, NULL);
 
 		// Drawing Objects
-		DrawSkyBox(m_pDeviceContext, SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer, m_pInput, m_pSkyBoxVertexShader, m_pSkyBoxPixelShader);
-		DrawFloor();
-		DrawGeometry();
-		DrawCube();
-		DrawObject(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture);
+		DrawIndexedGeometry(m_pDeviceContext, SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer, m_pInput, m_pSkyBoxVertexShader, m_pSkyBoxPixelShader, 36);
+		DrawIndexedGeometry(m_pDeviceContext, FloorTexture, FloorVertexBuffer, FloorIndexBuffer, FloorConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 6);
+		DrawIndexedGeometry(m_pDeviceContext, m_pTexture, m_pVertexBuffer, m_pIndexBuffer, m_pConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 36);
+		DrawModel(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture, m_pInput, m_pVertexShader, m_pPixelShader);
+
+
+		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
+		ID3D11ShaderResourceView* nip = nullptr;
+		m_pDeviceContext->PSSetShaderResources(NULL, 1, &nip);
+		m_pDeviceContext->OMSetRenderTargets(1, &CameraRender, NULL);
+
+		UpdateConstant(GeometryMatrix, ViewMatrix, ProjectionMatrix, GeometryConstantBuffer, m_pDeviceContext);
+		UpdateConstant(CubeMatrix, ViewMatrixSub, ProjectionMatrix, m_pConstantBuffer, m_pDeviceContext);
+		UpdateConstant(PryamidMatrix, ViewMatrixSub, ProjectionMatrix, PryamidConstantBuffer, m_pDeviceContext);
+		UpdateConstant(FloorMatrix, ViewMatrixSub, ProjectionMatrix, FloorConstantBuffer, m_pDeviceContext);
+		UpdateConstant(SkyBoxMatrix, ViewMatrixSub, ProjectionMatrix, SkyBoxConstantBuffer, m_pDeviceContext);
+
+		DrawIndexedGeometry(m_pDeviceContext, SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer, m_pInput, m_pSkyBoxVertexShader, m_pSkyBoxPixelShader, 36);
+		DrawIndexedGeometry(m_pDeviceContext, FloorTexture, FloorVertexBuffer, FloorIndexBuffer, FloorConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 6);
+		DrawIndexedGeometry(m_pDeviceContext, m_pTexture, m_pVertexBuffer, m_pIndexBuffer, m_pConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 36);
+
+
+		// Setting Target View
+		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
+		
+		DrawGSGeometry();
 
 		/* Presenting our back buffer to our front buffer */
 		m_pSwapChain->Present(0, 0);
@@ -664,31 +754,32 @@ bool Run() {
 	}
 	else if (SwapSceneInt == 1) {
 		#pragma region Scene2
-
+		#pragma region AllCamerasMovement
 		if (GetAsyncKeyState('X') & 0x1) { SwapCameraInt++; }
-
 		if (SwapCameraInt == 0) {
 			// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
-			CameraMovement(ViewMatrix, ProjectionMatrix);
+			CameraMovement(ViewMatrix, ViewMatrixSub, ProjectionMatrix);
 		}
 		else if (SwapCameraInt == 1) {
 			// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
-			CameraMovement(ViewMatrix2, ProjectionMatrix2);
+			CameraMovement(ViewMatrix2, ViewMatrix2Sub, ProjectionMatrix2);
 		}
 		else if (SwapCameraInt == 2) {
 			// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
-			CameraMovement(ViewMatrix3, ProjectionMatrix3);
+			CameraMovement(ViewMatrix3, ViewMatrix3Sub, ProjectionMatrix3);
 		}
 		else if (SwapCameraInt == 3) {
 			// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
-			CameraMovement(ViewMatrix4, ProjectionMatrix4);
+			CameraMovement(ViewMatrix4, ViewMatrix4Sub, ProjectionMatrix4);
 		}
-		else{ SwapCameraInt = 0; }
+		else { SwapCameraInt = 0;}
+		#pragma endregion
 
 		// Setting Target View
 		DeviceContextTemp->OMSetRenderTargets(1, &RenderTemp, DepthStencilTemp);
 
 //------- Top Left --------------------------------------------------------------//
+		#pragma region
 		// Setting Viewport
 		DeviceContextTemp->RSSetViewports(1, &m_ViewPort[0]);
 
@@ -703,42 +794,81 @@ bool Run() {
 
 		// Update variables
 		UpdateConstant(SkyBoxMatrix, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer2, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix, ProjectionMatrix, WallConstantBuffer1, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix, ProjectionMatrix, WallConstantBuffer2, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix, ProjectionMatrix, WallConstantBuffer3, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix, ProjectionMatrix, WallConstantBuffer4, DeviceContextTemp);
 
 		// Drawing Objects
-		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
+		DrawIndexedGeometry(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp, 36);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture1, WallVertexBuffer1, WallIndexBuffer1, WallConstantBuffer1, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture2, WallVertexBuffer2, WallIndexBuffer2, WallConstantBuffer2, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture3, WallVertexBuffer3, WallIndexBuffer3, WallConstantBuffer3, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture4, WallVertexBuffer4, WallIndexBuffer4, WallConstantBuffer4, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 
+#pragma endregion
 
 //------ Top Right ---------------------------------------------------------------//
+		#pragma region
 		// Setting Viewport
 		DeviceContextTemp->RSSetViewports(1, &m_ViewPort[1]);
 
 		// Update variables
 		UpdateConstant(SkyBoxMatrix, ViewMatrix2, ProjectionMatrix2, SkyBoxConstantBuffer2, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix2, ProjectionMatrix2, WallConstantBuffer1, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix2, ProjectionMatrix2, WallConstantBuffer2, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix2, ProjectionMatrix2, WallConstantBuffer3, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix2, ProjectionMatrix2, WallConstantBuffer4, DeviceContextTemp);
 
 		// Drawing Objects
-		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
+		DrawIndexedGeometry(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp, 36);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture1, WallVertexBuffer1, WallIndexBuffer1, WallConstantBuffer1, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture2, WallVertexBuffer2, WallIndexBuffer2, WallConstantBuffer2, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture3, WallVertexBuffer3, WallIndexBuffer3, WallConstantBuffer3, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture4, WallVertexBuffer4, WallIndexBuffer4, WallConstantBuffer4, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+#pragma endregion
 
 //------ Bottom Left ---------------------------------------------------------------//
+		#pragma region
 		// Setting Viewport
 		DeviceContextTemp->RSSetViewports(1, &m_ViewPort[2]);
 
 		// Update variables
 		UpdateConstant(SkyBoxMatrix, ViewMatrix3, ProjectionMatrix3, SkyBoxConstantBuffer2, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix3, ProjectionMatrix3, WallConstantBuffer1, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix3, ProjectionMatrix3, WallConstantBuffer2, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix3, ProjectionMatrix3, WallConstantBuffer3, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix3, ProjectionMatrix3, WallConstantBuffer4, DeviceContextTemp);
 
 		// Drawing Objects
-		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
+		DrawIndexedGeometry(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp, 36);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture1, WallVertexBuffer1, WallIndexBuffer1, WallConstantBuffer1, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture2, WallVertexBuffer2, WallIndexBuffer2, WallConstantBuffer2, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture3, WallVertexBuffer3, WallIndexBuffer3, WallConstantBuffer3, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture4, WallVertexBuffer4, WallIndexBuffer4, WallConstantBuffer4, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 
+#pragma endregion
 
 //------ Bottom Right ---------------------------------------------------------------//
+		#pragma region
 		// Setting Viewport
 		DeviceContextTemp->RSSetViewports(1, &m_ViewPort[3]);
 
 		// Update variables
 		UpdateConstant(SkyBoxMatrix, ViewMatrix4, ProjectionMatrix4, SkyBoxConstantBuffer2, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix4, ProjectionMatrix4, WallConstantBuffer1, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix4, ProjectionMatrix4, WallConstantBuffer2, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix4, ProjectionMatrix4, WallConstantBuffer3, DeviceContextTemp);
+		UpdateConstant(WallMatrix, ViewMatrix4, ProjectionMatrix4, WallConstantBuffer4, DeviceContextTemp);
 
 		// Drawing Objects
-		DrawSkyBox(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp);
+		DrawIndexedGeometry(DeviceContextTemp, SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2, InputTemp, SkyBoxVertexShaderTemp, SkyBoxPixelShaderTemp, 36);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture1, WallVertexBuffer1, WallIndexBuffer1, WallConstantBuffer1, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture2, WallVertexBuffer2, WallIndexBuffer2, WallConstantBuffer2, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture3, WallVertexBuffer3, WallIndexBuffer3, WallConstantBuffer3, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
+		DrawIndexedGeometry(DeviceContextTemp, WallTexture4, WallVertexBuffer4, WallIndexBuffer4, WallConstantBuffer4, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 
+#pragma endregion
 
 		/* Presenting our back buffer to our front buffer */
 		SwapTemp->Present(0, 0);
@@ -797,6 +927,10 @@ void Shutdown() {
 	if (m_pGeometryVertexShader) { m_pGeometryVertexShader->Release(); }
 	if (m_pGeometryShader) { m_pGeometryShader->Release(); }
 
+	if (CameraTexture2D) { CameraTexture2D->Release(); }
+	if (CameraRender) { CameraRender->Release(); }
+
+
 
 	// Scene 2
 	if (RenderTemp) { RenderTemp->Release(); }
@@ -808,12 +942,35 @@ void Shutdown() {
 	if (DepthStencilTemp) { DepthStencilTemp->Release(); }
 	if (SamplerStateTemp) { SamplerStateTemp->Release(); }
 	if (Texture2DTemp) { Texture2DTemp->Release(); }
+	if (VertexShaderTemp) { VertexShaderTemp->Release(); }
+	if (PixelShaderTemp) { PixelShaderTemp->Release(); }
+
 	if (SkyBoxVertexShaderTemp) { SkyBoxVertexShaderTemp->Release(); }
 	if (SkyBoxPixelShaderTemp) { SkyBoxPixelShaderTemp->Release(); }
 	if (SkyBoxVertexBuffer2) { SkyBoxVertexBuffer2->Release(); }
 	if (SkyBoxIndexBuffer2) { SkyBoxIndexBuffer2->Release(); }
 	if (SkyBoxConstantBuffer2) { SkyBoxConstantBuffer2->Release(); }
 	if (SkyBoxTexture2) { SkyBoxTexture2->Release(); }
+
+	if (WallVertexBuffer1) { WallVertexBuffer1->Release(); }
+	if (WallIndexBuffer1) { WallIndexBuffer1->Release(); }
+	if (WallConstantBuffer1) { WallConstantBuffer1->Release(); }
+	if (WallTexture1) { WallTexture1->Release(); }
+	if (WallVertexBuffer2) { WallVertexBuffer2->Release(); }
+	if (WallIndexBuffer2) { WallIndexBuffer2->Release(); }
+	if (WallConstantBuffer2) { WallConstantBuffer2->Release(); }
+	if (WallTexture2) { WallTexture2->Release(); }
+	if (WallVertexBuffer3) { WallVertexBuffer3->Release(); }
+	if (WallIndexBuffer3) { WallIndexBuffer3->Release(); }
+	if (WallConstantBuffer3) { WallConstantBuffer3->Release(); }
+	if (WallTexture3) { WallTexture3->Release(); }
+	if (WallVertexBuffer4) { WallVertexBuffer4->Release(); }
+	if (WallIndexBuffer4) { WallIndexBuffer4->Release(); }
+	if (WallConstantBuffer4) { WallConstantBuffer4->Release(); }
+	if (WallTexture4) { WallTexture4->Release(); }
+
+
+	if (CameraResource) { CameraResource->Release(); }
 }
 
 
@@ -1169,50 +1326,7 @@ void SetSkyBox(ID3D11Device* &device, const wchar_t* fileName, ID3D11ShaderResou
 	CreateDDSTextureFromFile(device, fileName, NULL, &texture);
 }
 
-void SetStincel()
-{
-	// Creating Floor Vertex
-	SIMPLE_VERTEX Vertex[] = {
-		{ XMFLOAT4(-5.0f, -0.5f, -5.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(5.0f, -0.5f, -5.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(5.0f, -0.5f,  5.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-5.0f, -0.5f,  5.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-	};
-
-	// Initializing Vertex Buffer
-	D3D11_BUFFER_DESC		buffdesc;
-	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
-	buffdesc.Usage = D3D11_USAGE_DEFAULT;
-	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
-
-	// Initializing SubSource
-	D3D11_SUBRESOURCE_DATA data;
-	ZeroMemory(&data, sizeof(data));
-	data.pSysMem = Vertex;
-
-	// Creating Vertex Buffer
-	m_pDevice->CreateBuffer(&buffdesc, &data, &StincelVertexBuffer);
-
-	// Creating Floor Index
-	DWORD32 Indexes[] = {
-		3,1,0,
-		2,1,3,
-	};
-
-	// Initializing/Creating Index Buffer
-	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
-	data.pSysMem = Indexes;
-	m_pDevice->CreateBuffer(&buffdesc, &data, &StincelIndexBuffer);
-
-	// Initializing/Creating Constant Buffer
-	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	buffdesc.ByteWidth = sizeof(ConstantMatrix);
-	m_pDevice->CreateBuffer(&buffdesc, nullptr, &StincelConstantBuffer);
-}
-
-void LoadandSetObject(const char* fileName, ObjLoader &model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer, ID3D11Device* &device)
+void SetModel(const char* fileName, ObjLoader &model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer, ID3D11Device* &device)
 {
 	ObjLoader mesh;
 	mesh.Load(fileName);
@@ -1262,36 +1376,188 @@ void LoadandSetObject(const char* fileName, ObjLoader &model, ID3D11Buffer* &ver
 	delete[] Indexes;
 }
 
+void SetWall() {
+	#pragma region Wall1
+	SIMPLE_VERTEX Vertex1[] = {
+		{ XMFLOAT4(0.0f, -10.0f, 10.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(0.0f, -10.0f, -10.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(0.0f, 10.0f, -10.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(0.0f, 10.0f, 10.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+	};
+
+	// Initializing Buffer
+	D3D11_BUFFER_DESC		buffdesc;
+	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA data;
+	ZeroMemory(&data, sizeof(data));
+	data.pSysMem = Vertex1;
+
+	// Creating Vertex Buffer
+	DeviceTemp->CreateBuffer(&buffdesc, &data, &WallVertexBuffer1);
+
+	// Creating Index
+	DWORD32 Indexes1[] = {
+		3,1,0,
+		2,1,3,
+	};
+
+	// Creating Index buffer
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
+	data.pSysMem = Indexes1;
+	DeviceTemp->CreateBuffer(&buffdesc, &data, &WallIndexBuffer1);
+
+	// Initializing/Creating Constant Buffer
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	DeviceTemp->CreateBuffer(&buffdesc, nullptr, &WallConstantBuffer1);
+	#pragma endregion
+
+	#pragma region Wall2
+	SIMPLE_VERTEX Vertex2[] = {
+		{ XMFLOAT4(0.0f, -10.0f, 10.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(0.0f, -10.0f, -10.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(0.0f, 10.0f, -10.0f, 1.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(0.0f, 10.0f, 10.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+	};
+
+	// Initializing Buffer
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
+
+	// Initializing SubSource
+	data.pSysMem = Vertex2;
+
+	// Creating Vertex Buffer
+	DeviceTemp->CreateBuffer(&buffdesc, &data, &WallVertexBuffer2);
+
+	// Creating Index
+	DWORD32 Indexes[] = {
+		2,0,1,
+		3,0,2,
+	};
+
+	// Creating Index buffer
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
+	data.pSysMem = Indexes;
+	DeviceTemp->CreateBuffer(&buffdesc, &data, &WallIndexBuffer2);
+
+	// Initializing/Creating Constant Buffer
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	DeviceTemp->CreateBuffer(&buffdesc, nullptr, &WallConstantBuffer2);
+	#pragma endregion
+
+	#pragma region Wall3
+	SIMPLE_VERTEX Vertex3[] = {
+		{ XMFLOAT4(-10.0f, -10.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(10.0f, -10.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(10.0f, 10.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(-10.0f, 10.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+	};
+
+	// Initializing Buffer
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
+
+	// Initializing SubSource
+	data.pSysMem = Vertex3;
+
+	// Creating Vertex Buffer
+	DeviceTemp->CreateBuffer(&buffdesc, &data, &WallVertexBuffer3);
+
+	// Creating Index
+	DWORD32 Indexes3[] = {
+		3,1,0,
+		2,1,3,
+	};
+
+	// Creating Index buffer
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
+	data.pSysMem = Indexes3;
+	DeviceTemp->CreateBuffer(&buffdesc, &data, &WallIndexBuffer3);
+
+	// Initializing/Creating Constant Buffer
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	DeviceTemp->CreateBuffer(&buffdesc, nullptr, &WallConstantBuffer3);
+	#pragma endregion
+
+	#pragma region Wall4
+	SIMPLE_VERTEX Vertex4[] = {
+		{ XMFLOAT4(-10.0f, -10.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(10.0f, -10.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(10.0f, 10.0f, 0.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(-10.0f, 10.0f, 0.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+	};
+
+	// Initializing Buffer
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
+
+	// Initializing SubSource
+	data.pSysMem = Vertex4;
+
+	// Creating Vertex Buffer
+	DeviceTemp->CreateBuffer(&buffdesc, &data, &WallVertexBuffer4);
+
+	// Creating Index
+	DWORD32 Indexes4[] = {
+		2,0,1,
+		3,0,2
+	};
+
+	// Creating Index buffer
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
+	data.pSysMem = Indexes4;
+	DeviceTemp->CreateBuffer(&buffdesc, &data, &WallIndexBuffer4);
+
+	// Initializing/Creating Constant Buffer
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	DeviceTemp->CreateBuffer(&buffdesc, nullptr, &WallConstantBuffer4);
+	#pragma endregion
+}
 
 //----------------------------------------------------------------------------------------------------------
 // Functions: Rendering Frame by frame
 //----------------------------------------------------------------------------------------------------------
-void DrawCube() {
-	/* Renders the Triangles for the Cube */
+void DrawIndexedGeometry(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader, UINT count) {
+	/* Renders the Triangles for the SkyBox */
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &m_pVertexBuffer, &strides, &offsets);
+	deviceContext->IASetVertexBuffers(NULL, 1, &vertexBuffer, &strides, &offsets);
 	// Setting Input Layout
-	m_pDeviceContext->IASetInputLayout(m_pInput);
+	deviceContext->IASetInputLayout(input);
 	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	deviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, NULL);
 	// Setting Topology
-	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
+	deviceContext->VSSetShader(vertexShader, NULL, NULL);
 	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &m_pConstantBuffer);
+	deviceContext->VSSetConstantBuffers(NULL, 1, &constantBuffer);
 
 	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
+	deviceContext->PSSetShader(pixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(NULL, 1, &m_pTexture);
+	deviceContext->PSSetShaderResources(NULL, 1, &texture);
 
-	// Drawing Indexed Cube
-	m_pDeviceContext->DrawIndexed(36, 0, 0);
-	//m_pDeviceContext->DrawIndexedInstanced(36, 3, 0, 0, 0);
+	// Drawing Indexed SkyBox
+	deviceContext->DrawIndexed(count, 0, 0);
 }
 
 void DrawInstancedCube() {
@@ -1321,61 +1587,7 @@ void DrawInstancedCube() {
 	m_pDeviceContext->DrawIndexedInstanced(36, 3, 0, 0, 0);
 }
 
-void DrawFloor()
-{
-	/* Renders the Triangles for the Floor */
-	unsigned int	strides = sizeof(SIMPLE_VERTEX);
-	unsigned int	offsets = 0;
-	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &FloorVertexBuffer, &strides, &offsets);
-	// Setting Input Layout
-	m_pDeviceContext->IASetInputLayout(m_pInput);
-	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(FloorIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
-	// Setting Topology
-	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
-	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &FloorConstantBuffer);
-
-	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
-	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(NULL, 1, &FloorTexture);
-
-	// Drawing Indexed Quad
-	m_pDeviceContext->DrawIndexed(6, 0, 0);
-}
-
-void DrawStincel()
-{
-	/* Renders the Triangles for the Floor */
-	unsigned int	strides = sizeof(SIMPLE_VERTEX);
-	unsigned int	offsets = 0;
-	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &StincelVertexBuffer, &strides, &offsets);
-	// Setting Input Layout
-	m_pDeviceContext->IASetInputLayout(m_pInput);
-	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(StincelIndexBuffer, DXGI_FORMAT_R32_UINT, NULL);
-	// Setting Topology
-	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, NULL);
-	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &StincelConstantBuffer);
-
-	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
-
-	// Drawing Indexed Quad
-	m_pDeviceContext->DrawIndexed(6, 0, 0);
-}
-
-void DrawGeometry() {
+void DrawGSGeometry() {
 	/* Renders the Geometry for the Floor */
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
@@ -1396,7 +1608,7 @@ void DrawGeometry() {
 	/* Setting Pixel Shader */
 	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(0, 1, &GeometryTexture);
+	m_pDeviceContext->PSSetShaderResources(0, 1, &CameraResource);
 	
 	/* Setting Geometry Shader */
 	m_pDeviceContext->GSSetShader(m_pGeometryShader, NULL, NULL);
@@ -1410,51 +1622,24 @@ void DrawGeometry() {
 	m_pDeviceContext->GSSetShader(NULL, NULL, NULL);
 }
 
-void DrawSkyBox(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader) {
-	/* Renders the Triangles for the SkyBox */
-	unsigned int	strides = sizeof(SIMPLE_VERTEX);
-	unsigned int	offsets = 0;
-	// Setting VertexBuffer
-	deviceContext->IASetVertexBuffers(NULL, 1, &vertexBuffer, &strides, &offsets);
-	// Setting Input Layout
-	deviceContext->IASetInputLayout(input);
-	// Setting Index Buffer
-	deviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, NULL);
-	// Setting Topology
-	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	/* Setting Vertex Shader */
-	deviceContext->VSSetShader(vertexShader, NULL, NULL);
-	// Setting Constant Buffer
-	deviceContext->VSSetConstantBuffers(NULL, 1, &constantBuffer);
-
-	/* Setting Pixel Shader */
-	deviceContext->PSSetShader(pixelShader, NULL, NULL);
-	// Setting Texture Resource
-	deviceContext->PSSetShaderResources(NULL, 1, &texture);
-
-	// Drawing Indexed SkyBox
-	deviceContext->DrawIndexed(36, 0, 0);
-}
-
-void DrawObject(ObjLoader & model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture)
+void DrawModel(ObjLoader & model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader)
 {
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
 	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &vertexBuffer, &strides, &offsets);
 	// Setting Input Layout
-	m_pDeviceContext->IASetInputLayout(m_pInput);
+	m_pDeviceContext->IASetInputLayout(input);
 	// Setting Index Buffer
 	m_pDeviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, NULL);
 	// Setting Topology
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(m_pVertexShader, nullptr, NULL);
+	m_pDeviceContext->VSSetShader(vertexShader, nullptr, NULL);
 	// Setting Constant Buffer
 	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &constantBuffer);
 	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(m_pPixelShader, nullptr, NULL);
+	m_pDeviceContext->PSSetShader(pixelShader, nullptr, NULL);
 	// Setting Texture Resource
 	m_pDeviceContext->PSSetShaderResources(NULL, 1, &texture);
 
@@ -1474,10 +1659,10 @@ void UpdateConstant(XMMATRIX &geometryMatrix, XMMATRIX &viewMatrix, XMMATRIX &pr
 //----------------------------------------------------------------------------------------------------------
 // Functions: Key Presses
 //----------------------------------------------------------------------------------------------------------
-void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix) {
+void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &viewMatrixSub, XMMATRIX &projectionMatrix) {
 
 	// Reset Camera
-	if (GetAsyncKeyState('R')) { viewMatrix = ViewMatrixsSub; }
+	if (GetAsyncKeyState('R')) { viewMatrix = viewMatrixSub; }
 
 	// ViewPort/Camera Fly Forward
 	if (GetAsyncKeyState('Q')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0, -0.01f)); }
@@ -1590,49 +1775,63 @@ void LightMovment() {
 }
 
 void SceneManagment() {
+
+	// Getting The Current Width and Height of the Window
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	UINT width = rc.right;
+	UINT height = rc.bottom;
+
 	if (GetAsyncKeyState('Z') & 0x1) {
 		SwapSceneInt++;
 		if (SwapSceneInt == 1) {
+			SwapCameraInt = 0;
 			ViewMatrix = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrixsSub = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrixSub = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix2 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 5.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix2Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 5.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix3 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix3Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix4 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix4Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
 
 			// Initializing the Viewport
-			m_ViewPort[0].Width = static_cast<float>(BACKBUFFER_WIDTH * 0.5);
-			m_ViewPort[0].Height = static_cast<float>(BACKBUFFER_HEIGHT * 0.5);
+			m_ViewPort[0].Width = static_cast<float>(width * 0.5);
+			m_ViewPort[0].Height = static_cast<float>(height * 0.5);
 			m_ViewPort[0].MinDepth = 0.0f;
 			m_ViewPort[0].MaxDepth = 1.0f;
 			m_ViewPort[0].TopLeftX = 0;
 			m_ViewPort[0].TopLeftY = 0;
 
-			m_ViewPort[1].Width = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
-			m_ViewPort[1].Height = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+			m_ViewPort[1].Width = static_cast<float>(width * 0.5f);
+			m_ViewPort[1].Height = static_cast<float>(height * 0.5f);
 			m_ViewPort[1].MinDepth = 0.0f;
 			m_ViewPort[1].MaxDepth = 1.0f;
-			m_ViewPort[1].TopLeftX = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
+			m_ViewPort[1].TopLeftX = static_cast<float>(width * 0.5f);
 			m_ViewPort[1].TopLeftY = 0;
 
-			m_ViewPort[2].Width = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
-			m_ViewPort[2].Height = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+			m_ViewPort[2].Width = static_cast<float>(width * 0.5f);
+			m_ViewPort[2].Height = static_cast<float>(height * 0.5f);
 			m_ViewPort[2].MinDepth = 0.0f;
 			m_ViewPort[2].MaxDepth = 1.0f;
 			m_ViewPort[2].TopLeftX = 0;
-			m_ViewPort[2].TopLeftY = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+			m_ViewPort[2].TopLeftY = static_cast<float>(height * 0.5f);
 
-			m_ViewPort[3].Width = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
-			m_ViewPort[3].Height = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+			m_ViewPort[3].Width = static_cast<float>(width * 0.5f);
+			m_ViewPort[3].Height = static_cast<float>(height * 0.5f);
 			m_ViewPort[3].MinDepth = 0.0f;
 			m_ViewPort[3].MaxDepth = 1.0f;
-			m_ViewPort[3].TopLeftX = static_cast<float>(BACKBUFFER_WIDTH * 0.5f);
-			m_ViewPort[3].TopLeftY = static_cast<float>(BACKBUFFER_HEIGHT * 0.5f);
+			m_ViewPort[3].TopLeftX = static_cast<float>(width * 0.5f);
+			m_ViewPort[3].TopLeftY = static_cast<float>(height * 0.5f);
 
 		}
 		if (SwapSceneInt == 2) {
 			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
-			ViewMatrixsSub = XMMatrixLookAtLH(Eye, Focus, Up);
+			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
 
 			// Initializing the Viewport
-			m_ViewPort[0].Width = static_cast<float>(BACKBUFFER_WIDTH);
-			m_ViewPort[0].Height = static_cast<float>(BACKBUFFER_HEIGHT);
+			m_ViewPort[0].Width = static_cast<float>(width);
+			m_ViewPort[0].Height = static_cast<float>(height);
 			m_ViewPort[0].MinDepth = 0.0f;
 			m_ViewPort[0].MaxDepth = 1.0f;
 			m_ViewPort[0].TopLeftX = 0;
