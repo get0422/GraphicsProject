@@ -130,6 +130,30 @@ ID3D11Buffer*					WallConstantBuffer4		= nullptr;
 ID3D11ShaderResourceView*		WallTexture4			= nullptr;
 //----------------------------------------------------------------------------------------
 
+//-Scene-3--------------------------------------------------------------------------------
+ID3D11RenderTargetView*			Render3					= nullptr;
+IDXGISwapChain*					Swap3					= nullptr;
+ID3D11Device*					Device3					= nullptr;
+ID3D11DeviceContext*			DeviceContext3			= nullptr;
+ID3D11Resource*					BackBuffer3				= nullptr;
+ID3D11InputLayout*				Input3					= nullptr;
+ID3D11VertexShader* 			VertexShader3			= nullptr;
+ID3D11PixelShader*				PixelShader3			= nullptr;
+ID3D11VertexShader* 			SkyBoxVertexShader3		= nullptr;
+ID3D11PixelShader*				SkyBoxPixelShader3		= nullptr;
+ID3D11DepthStencilView*			DepthStencil3			= nullptr;
+ID3D11SamplerState*				SamplerState3			= nullptr;
+ID3D11Texture2D*				Texture2D3				= nullptr;
+
+// Need For Skybox 3
+XMMATRIX						SkyBoxMatrix3;
+ID3D11Buffer*					SkyBoxVertexBuffer3		= nullptr;
+ID3D11Buffer*					SkyBoxIndexBuffer3		= nullptr;
+ID3D11Buffer*					SkyBoxConstantBuffer3	= nullptr;
+ID3D11ShaderResourceView*		SkyBoxTexture3			= nullptr;
+
+//----------------------------------------------------------------------------------------
+
 
 // Instancing
 ID3D11Buffer*					InstanceBuffer			= nullptr;
@@ -185,6 +209,9 @@ XMMATRIX						CameraProjection;
 ID3D11Texture2D*				CameraTexture2D			= nullptr;
 ID3D11RenderTargetView*			CameraRender			= nullptr;
 ID3D11ShaderResourceView*		CameraResource			= nullptr;
+
+XMMATRIX ProjectionMatrixTemp;
+XMMATRIX	ViewMatrixTemp;
 
 #pragma endregion
 
@@ -468,7 +495,22 @@ HRESULT Initialize() {
 	DeviceTemp->CreateTexture2D(&texturedesc, NULL, &Texture2DTemp);
 
 	DeviceTemp->CreateDepthStencilView(Texture2DTemp, &descDSV, &DepthStencilTemp);
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////CameraTexture
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+////// For Scene 3 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
+		NULL, D3D11_SDK_VERSION, &swapdesc, &Swap3, &Device3, &m_FeatureLevel, &DeviceContext3);
+
+	// TODO: PART 1 STEP 4
+	Swap3->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&BackBuffer3));
+	Device3->CreateRenderTargetView(BackBuffer3, NULL, &Render3);
+
+	Device3->CreateTexture2D(&texturedesc, NULL, &Texture2D3);
+
+	Device3->CreateDepthStencilView(Texture2D3, &descDSV, &DepthStencil3);
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 	D3D11_TEXTURE2D_DESC texturedesc2;
 	ZeroMemory(&texturedesc2, sizeof(texturedesc2));
 	texturedesc2.Width = width;
@@ -502,6 +544,7 @@ HRESULT Initialize() {
 	SetCube();
 	SetFloorAndGeometry();
 	SetSkyBox(m_pDevice, L"files/SkyboxOcean.dds", SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer);
+	
 	// Setting Onject
 	SetModel("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, m_pDevice);
 
@@ -512,6 +555,11 @@ HRESULT Initialize() {
 	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Ice.dds", NULL, &WallTexture2);
 	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Purple2.dds", NULL, &WallTexture3);
 	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Red2Dark.dds", NULL, &WallTexture4);
+
+
+	// Setting Indexed Geometry for Scene 2
+	SetSkyBox(Device3, L"files/OutputCube.dds", SkyBoxTexture3, SkyBoxVertexBuffer3, SkyBoxIndexBuffer3, SkyBoxConstantBuffer3);
+
 
 
 
@@ -565,6 +613,7 @@ HRESULT Initialize() {
 	sampDesc.MaxLOD			= D3D11_FLOAT32_MAX;
 	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
 	DeviceTemp->CreateSamplerState(&sampDesc, &SamplerStateTemp);
+	Device3->CreateSamplerState(&sampDesc, &SamplerState3);
 
 
 
@@ -582,6 +631,12 @@ HRESULT Initialize() {
 	DeviceTemp->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SkyBoxPixelShaderTemp);
 	DeviceTemp->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &SkyBoxVertexShaderTemp);
 
+	// Decleraing Shaders for Scene 3
+	Device3->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VertexShader3);
+	Device3->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PixelShader3);
+	Device3->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SkyBoxPixelShader3);
+	Device3->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &SkyBoxVertexShader3);
+
 
 
 	// Defining the Input Layout
@@ -598,6 +653,7 @@ HRESULT Initialize() {
 	// Creating the Input Layout
 	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
 	DeviceTemp->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &InputTemp);
+	Device3->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &Input3);
 
 	// Initializing the world matrix
 	WorldMatrix		= XMMatrixIdentity();
@@ -613,6 +669,8 @@ HRESULT Initialize() {
 	GeometryMatrix = XMMatrixIdentity();
 
 	SkyBoxMatrix = XMMatrixIdentity();
+	SkyBoxMatrix2 = XMMatrixIdentity();
+	SkyBoxMatrix3 = XMMatrixIdentity();
 	WallMatrix		= XMMatrixIdentity();
 
 	CameraView = XMMatrixLookAtLH(Eye, Focus, Up);
@@ -628,8 +686,14 @@ HRESULT Initialize() {
 	ViewMatrix3Sub = XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
 	ViewMatrix4Sub = XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
 
+	// Testing with Render to Texture
+	//ProjectionMatrixTemp = XMMatrixOrthographicLH(200, 200, NearPlane, FarPlane);
+	//ViewMatrixTemp = XMMatrixLookAtLH(XMVectorSet(0.0f, 10, -5.0f, 0.0f), Focus, Up);
+	ProjectionMatrixTemp = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	ViewMatrixTemp = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5, -5.0f, 0.0f), Focus, Up);
+
 	// Initializing the projection matrix
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI/Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
 	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
 	ProjectionMatrix3 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
 	ProjectionMatrix4 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
@@ -726,26 +790,27 @@ bool Run() {
 		DrawIndexedGeometry(m_pDeviceContext, m_pTexture, m_pVertexBuffer, m_pIndexBuffer, m_pConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 36);
 		DrawModel(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture, m_pInput, m_pVertexShader, m_pPixelShader);
 
-
+		//-- Render To Texture --------------------------------------------------------------------------------------------------------
 		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
 		ID3D11ShaderResourceView* nip = nullptr;
 		m_pDeviceContext->PSSetShaderResources(NULL, 1, &nip);
 		m_pDeviceContext->OMSetRenderTargets(1, &CameraRender, NULL);
 
 		UpdateConstant(GeometryMatrix, ViewMatrix, ProjectionMatrix, GeometryConstantBuffer, m_pDeviceContext);
-		UpdateConstant(CubeMatrix, ViewMatrixSub, ProjectionMatrix, m_pConstantBuffer, m_pDeviceContext);
-		UpdateConstant(PryamidMatrix, ViewMatrixSub, ProjectionMatrix, PryamidConstantBuffer, m_pDeviceContext);
-		UpdateConstant(FloorMatrix, ViewMatrixSub, ProjectionMatrix, FloorConstantBuffer, m_pDeviceContext);
-		UpdateConstant(SkyBoxMatrix, ViewMatrixSub, ProjectionMatrix, SkyBoxConstantBuffer, m_pDeviceContext);
+		UpdateConstant(CubeMatrix, ViewMatrixTemp, ProjectionMatrixTemp, m_pConstantBuffer, m_pDeviceContext);
+		UpdateConstant(PryamidMatrix, ViewMatrixTemp, ProjectionMatrixTemp, PryamidConstantBuffer, m_pDeviceContext);
+		UpdateConstant(FloorMatrix, ViewMatrixTemp, ProjectionMatrixTemp, FloorConstantBuffer, m_pDeviceContext);
+		UpdateConstant(SkyBoxMatrix, ViewMatrixTemp, ProjectionMatrixTemp, SkyBoxConstantBuffer, m_pDeviceContext);
 
 		DrawIndexedGeometry(m_pDeviceContext, SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer, m_pInput, m_pSkyBoxVertexShader, m_pSkyBoxPixelShader, 36);
 		DrawIndexedGeometry(m_pDeviceContext, FloorTexture, FloorVertexBuffer, FloorIndexBuffer, FloorConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 6);
+		DrawModel(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture, m_pInput, m_pVertexShader, m_pPixelShader);
 		DrawIndexedGeometry(m_pDeviceContext, m_pTexture, m_pVertexBuffer, m_pIndexBuffer, m_pConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 36);
-
 
 		// Setting Target View
 		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
-		
+		//----------------------------------------------------------------------------------------------------------------------------
+
 		DrawGSGeometry();
 
 		/* Presenting our back buffer to our front buffer */
@@ -805,8 +870,7 @@ bool Run() {
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture2, WallVertexBuffer2, WallIndexBuffer2, WallConstantBuffer2, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture3, WallVertexBuffer3, WallIndexBuffer3, WallConstantBuffer3, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture4, WallVertexBuffer4, WallIndexBuffer4, WallConstantBuffer4, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
-
-#pragma endregion
+		#pragma endregion
 
 //------ Top Right ---------------------------------------------------------------//
 		#pragma region
@@ -826,7 +890,7 @@ bool Run() {
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture2, WallVertexBuffer2, WallIndexBuffer2, WallConstantBuffer2, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture3, WallVertexBuffer3, WallIndexBuffer3, WallConstantBuffer3, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture4, WallVertexBuffer4, WallIndexBuffer4, WallConstantBuffer4, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
-#pragma endregion
+		#pragma endregion
 
 //------ Bottom Left ---------------------------------------------------------------//
 		#pragma region
@@ -846,8 +910,7 @@ bool Run() {
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture2, WallVertexBuffer2, WallIndexBuffer2, WallConstantBuffer2, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture3, WallVertexBuffer3, WallIndexBuffer3, WallConstantBuffer3, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture4, WallVertexBuffer4, WallIndexBuffer4, WallConstantBuffer4, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
-
-#pragma endregion
+		#pragma endregion
 
 //------ Bottom Right ---------------------------------------------------------------//
 		#pragma region
@@ -867,14 +930,42 @@ bool Run() {
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture2, WallVertexBuffer2, WallIndexBuffer2, WallConstantBuffer2, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture3, WallVertexBuffer3, WallIndexBuffer3, WallConstantBuffer3, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
 		DrawIndexedGeometry(DeviceContextTemp, WallTexture4, WallVertexBuffer4, WallIndexBuffer4, WallConstantBuffer4, InputTemp, VertexShaderTemp, PixelShaderTemp, 6);
-
-#pragma endregion
+		#pragma endregion
 
 		/* Presenting our back buffer to our front buffer */
 		SwapTemp->Present(0, 0);
 		#pragma endregion
 	}
-	
+	else if (SwapSceneInt == 2) {
+
+		// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+		CameraMovement(ViewMatrix, ViewMatrixSub, ProjectionMatrix);
+
+		// Setting Target View
+		DeviceContext3->OMSetRenderTargets(1, &Render3, DepthStencil3);
+
+		// Setting Viewport
+		DeviceContext3->RSSetViewports(1, &m_ViewPort[0]);
+
+		// Clearing Back Buffer
+		DeviceContext3->ClearRenderTargetView(Render3, Colors::DarkBlue);
+
+		// Setting Sampler State
+		DeviceContext3->PSSetSamplers(NULL, 1, &SamplerState3);
+
+		// Clearing Depth Buffer
+		DeviceContext3->ClearDepthStencilView(DepthStencil3, D3D11_CLEAR_DEPTH, 1.0f, NULL);
+
+		// Update variables
+		UpdateConstant(SkyBoxMatrix, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer3, DeviceContext3);
+
+		// Drawing Objects
+		DrawIndexedGeometry(DeviceContext3, SkyBoxTexture3, SkyBoxVertexBuffer3, SkyBoxIndexBuffer3, SkyBoxConstantBuffer3, Input3, SkyBoxVertexShader3, SkyBoxPixelShader3, 36);
+
+		/* Presenting our back buffer to our front buffer */
+		Swap3->Present(0, 0);
+
+	}
 	return true;
 }
 
@@ -969,6 +1060,26 @@ void Shutdown() {
 	if (WallConstantBuffer4) { WallConstantBuffer4->Release(); }
 	if (WallTexture4) { WallTexture4->Release(); }
 
+	// Scene 3
+	if (Render3) { Render3->Release(); }
+	if (Swap3) { Swap3->Release(); }
+	if (Device3) { Device3->Release(); }
+	if (DeviceContext3) { DeviceContext3->Release(); }
+	if (BackBuffer3) { BackBuffer3->Release(); }
+	if (Input3) { Input3->Release(); }
+	if (DepthStencil3) { DepthStencil3->Release(); }
+	if (SamplerState3) { SamplerState3->Release(); }
+	if (Texture2D3) { Texture2D3->Release(); }
+	if (VertexShader3) { VertexShader3->Release(); }
+	if (PixelShader3) { PixelShader3->Release(); }
+
+	if (SkyBoxVertexShader3) { SkyBoxVertexShader3->Release(); }
+	if (SkyBoxPixelShader3) { SkyBoxPixelShader3->Release(); }
+	if (SkyBoxVertexBuffer3) { SkyBoxVertexBuffer3->Release(); }
+	if (SkyBoxIndexBuffer3) { SkyBoxIndexBuffer3->Release(); }
+	if (SkyBoxConstantBuffer3) { SkyBoxConstantBuffer3->Release(); }
+	if (SkyBoxTexture3) { SkyBoxTexture3->Release(); }
+
 
 	if (CameraResource) { CameraResource->Release(); }
 }
@@ -980,7 +1091,7 @@ void Shutdown() {
 void SetCube() {
 	// Creating Cube Vertex
 
-	if (cubeverts < 4) {
+	if (cubeverts < 3) {
 	#pragma region Normal
 		SIMPLE_VERTEX Vertex[] = {
 			#pragma region CubeVerts
@@ -1100,7 +1211,7 @@ void SetCube() {
 	m_pDevice->CreateBuffer(&buffdesc, nullptr, &m_pConstantBuffer);
 	#pragma endregion
 	}
-	else if (cubeverts >= 4) {
+	else if (cubeverts >= 3) {
 	#pragma region Inverted
 		SIMPLE_VERTEX Vertex[] = {
 			#pragma region CubeVerts
@@ -1688,8 +1799,8 @@ void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &viewMatrixSub, XMMATRIX &pro
 	if (GetAsyncKeyState('L')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationY(-0.001)); }
 
 	// Adjust Near Plane
-	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1) { NearPlane += 0.01f; }
-	if (GetAsyncKeyState(VK_NUMPAD2) & 0x1) { if (FarPlane > 0.02) { NearPlane -= 0.01f; } }
+	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1) { NearPlane += 0.1f; }
+	if (GetAsyncKeyState(VK_NUMPAD2) & 0x1) { if (NearPlane > 0.1) { NearPlane -= 0.1f; } }
 
 	// Adjust Fare Plane
 	if (GetAsyncKeyState(VK_NUMPAD4) & 0x1) { if (FarPlane > 1) { FarPlane -= 1.0f; } }
@@ -1698,7 +1809,7 @@ void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &viewMatrixSub, XMMATRIX &pro
 	// ViewPort/Camera Zoom In
 	if (GetAsyncKeyState(VK_NUMPAD7) & 0x1) { Zoom += 0.05; }
 	// ViewPort/Camera Zoom Out
-	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1) { if (Zoom > 1.1) { Zoom -= 0.05; } }
+	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1) { if (Zoom > 2.1) { Zoom -= 0.05; } }
 
 	// Initializing the projection matrix
 	projectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
@@ -1826,6 +1937,19 @@ void SceneManagment() {
 
 		}
 		if (SwapSceneInt == 2) {
+			SwapCameraInt = 0;
+			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
+			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
+
+			// Initializing the Viewport
+			m_ViewPort[0].Width = static_cast<float>(width);
+			m_ViewPort[0].Height = static_cast<float>(height);
+			m_ViewPort[0].MinDepth = 0.0f;
+			m_ViewPort[0].MaxDepth = 1.0f;
+			m_ViewPort[0].TopLeftX = 0;
+			m_ViewPort[0].TopLeftY = 0;
+		}
+		if (SwapSceneInt == 3) {
 			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
 
@@ -1838,7 +1962,9 @@ void SceneManagment() {
 			m_ViewPort[0].TopLeftY = 0;
 
 			SwapSceneInt = 0;
+			SwapCameraInt = 0;
 		}
+
 	}
 
 }

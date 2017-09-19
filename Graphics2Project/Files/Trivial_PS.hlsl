@@ -1,6 +1,7 @@
 
 // Non-user Defined
 Texture2D tex : register(t0);
+Texture2D Glowtex : register(t1);
 SamplerState samp : register(s0);
 
 // User Defined Stuff from Vertex Needed for the Pixel Shader
@@ -31,6 +32,7 @@ float4 main(OUTPUT_VERTEX input) : SV_TARGET
 {
 	// Gets Texture Color
 	float4 TextureColor = tex.Sample(samp,input.uvH);
+	float4 GlowColor = Glowtex.Sample(samp, input.uvH);
 
 	// Ambient Light
 	float4 ambient = float4(0.25, 0.25, 0.25, 1);
@@ -57,7 +59,12 @@ float4 main(OUTPUT_VERTEX input) : SV_TARGET
 	float directionalLightRA = saturate(dot(normalize(-lights[2].direction), normalize(input.normalH)));
 	float4 directionalresult = directionalLightRA * lights[2].color * TextureColor;
 
-	 
+	// Emissive Matrerial
+
+
+	TextureColor = saturate(TextureColor + (GlowColor * input.colorOut.w));
+
+
 	TextureColor = saturate(ambient + spotLightResult + pointLightResult + directionalresult) * TextureColor;
 
 
