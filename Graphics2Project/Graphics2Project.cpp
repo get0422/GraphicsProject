@@ -80,6 +80,8 @@ ID3D11ShaderResourceView*		GeometryTexture			= nullptr;
 Lighting Lights[3];
 XMMATRIX						LightMatrix;
 ID3D11Buffer*					LightConstantBuffer		= nullptr;
+ID3D11Buffer*					LightConstantBuffer3	= nullptr;
+ID3D11Buffer*					LightConstantBuffer4	= nullptr;
 
 // Need For Skybox 1
 XMMATRIX						SkyBoxMatrix;
@@ -152,8 +154,64 @@ ID3D11Buffer*					SkyBoxIndexBuffer3		= nullptr;
 ID3D11Buffer*					SkyBoxConstantBuffer3	= nullptr;
 ID3D11ShaderResourceView*		SkyBoxTexture3			= nullptr;
 
+// Need for Loading Satellite
+ObjLoader						Satellite;
+XMMATRIX						SatelliteMatrix;
+ID3D11Buffer*					SatelliteVertexBuffer	= nullptr;
+ID3D11Buffer*					SatelliteIndexBuffer	= nullptr;
+ID3D11Buffer*					SatelliteConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		SatelliteTexture		= nullptr;
+
+// Need for Loading Moon
+ObjLoader						Moon;
+XMMATRIX						MoonMatrix;
+ID3D11Buffer*					MoonVertexBuffer		= nullptr;
+ID3D11Buffer*					MoonIndexBuffer			= nullptr;
+ID3D11Buffer*					MoonConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		MoonTexture				= nullptr;
+
+// Need for Loading Earth
+ObjLoader						Earth;
+XMMATRIX						EarthMatrix;
+ID3D11Buffer*					EarthVertexBuffer		= nullptr;
+ID3D11Buffer*					EarthIndexBuffer		= nullptr;
+ID3D11Buffer*					EarthConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		EarthTexture			= nullptr;
+
+// Need for Loading Satellite
+ObjLoader						Sun;
+XMMATRIX						SunMatrix;
+ID3D11Buffer*					SunVertexBuffer			= nullptr;
+ID3D11Buffer*					SunIndexBuffer			= nullptr;
+ID3D11Buffer*					SunConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		SunTexture				= nullptr;
+
 //----------------------------------------------------------------------------------------
 
+
+//-Scene-3--------------------------------------------------------------------------------
+ID3D11RenderTargetView*			Render4					= nullptr;
+IDXGISwapChain*					Swap4					= nullptr;
+ID3D11Device*					Device4					= nullptr;
+ID3D11DeviceContext*			DeviceContext4			= nullptr;
+ID3D11Resource*					BackBuffer4				= nullptr;
+ID3D11InputLayout*				Input4					= nullptr;
+ID3D11VertexShader* 			VertexShader4			= nullptr;
+ID3D11PixelShader*				PixelShader4			= nullptr;
+ID3D11VertexShader* 			SkyBoxVertexShader4		= nullptr;
+ID3D11PixelShader*				SkyBoxPixelShader4		= nullptr;
+ID3D11DepthStencilView*			DepthStencil4			= nullptr;
+ID3D11SamplerState*				SamplerState4			= nullptr;
+ID3D11Texture2D*				Texture2D4				= nullptr;
+
+// Need For Skybox 4
+XMMATRIX						SkyBoxMatrix4;
+ID3D11Buffer*					SkyBoxVertexBuffer4		= nullptr;
+ID3D11Buffer*					SkyBoxIndexBuffer4		= nullptr;
+ID3D11Buffer*					SkyBoxConstantBuffer4	= nullptr;
+ID3D11ShaderResourceView*		SkyBoxTexture4			= nullptr;
+
+//----------------------------------------------------------------------------------------
 
 // Instancing
 ID3D11Buffer*					InstanceBuffer			= nullptr;
@@ -192,7 +250,7 @@ int SpotCount		= 0;
 // Moving Camera (Zoom/Near/Far)
 float Zoom		= 2;
 float NearPlane	= 0.01;
-float FarPlane	= 300;
+float FarPlane	= 1100;
 
 // Change Size of Cube
 int cubeverts = 0;
@@ -210,7 +268,7 @@ ID3D11Texture2D*				CameraTexture2D			= nullptr;
 ID3D11RenderTargetView*			CameraRender			= nullptr;
 ID3D11ShaderResourceView*		CameraResource			= nullptr;
 
-XMMATRIX ProjectionMatrixTemp;
+XMMATRIX	ProjectionMatrixTemp;
 XMMATRIX	ViewMatrixTemp;
 
 #pragma endregion
@@ -234,7 +292,7 @@ void SetFloorAndGeometry();
 void DrawIndexedGeometry(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader, UINT count);
 void SetSkyBox(ID3D11Device* &device, const wchar_t* fileName, ID3D11ShaderResourceView* &texture, ID3D11Buffer* &vertexBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer);
 void SetModel(const char * filename, ObjLoader & model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer, ID3D11Device* &device);
-void DrawModel(ObjLoader &model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader);
+void DrawModel(ObjLoader &model, ID3D11DeviceContext * devicecontext, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader);
 void UpdateConstant(XMMATRIX &geometryMatrix, XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix, ID3D11Buffer* &constantBuffer, ID3D11DeviceContext* &deviceContext);
 
 void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &viewMatrixSub, XMMATRIX &projectionMatrix);
@@ -511,6 +569,21 @@ HRESULT Initialize() {
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+////// For Scene 4 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
+		NULL, D3D11_SDK_VERSION, &swapdesc, &Swap4, &Device4, &m_FeatureLevel, &DeviceContext4);
+
+	// TODO: PART 1 STEP 4
+	Swap4->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&BackBuffer4));
+	Device4->CreateRenderTargetView(BackBuffer4, NULL, &Render4);
+
+	Device4->CreateTexture2D(&texturedesc, NULL, &Texture2D4);
+
+	Device4->CreateDepthStencilView(Texture2D4, &descDSV, &DepthStencil4);
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 	D3D11_TEXTURE2D_DESC texturedesc2;
 	ZeroMemory(&texturedesc2, sizeof(texturedesc2));
 	texturedesc2.Width = width;
@@ -548,6 +621,14 @@ HRESULT Initialize() {
 	// Setting Onject
 	SetModel("Files/Crystal.obj", Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, m_pDevice);
 
+	// Loading Indexed Geometry Textures
+	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTexture);
+	CreateDDSTextureFromFile(m_pDevice, L"files/bownCartoonGround_seamless.dds", NULL, &FloorTexture);
+	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &GeometryTexture);
+
+	// Loading Object Textures 
+	CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);
+
 
 	// Setting Indexed Geometry for Scene 2
 	SetSkyBox(DeviceTemp, L"files/HW_Blue.dds", SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2);
@@ -557,20 +638,26 @@ HRESULT Initialize() {
 	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Red2Dark.dds", NULL, &WallTexture4);
 
 
-	// Setting Indexed Geometry for Scene 2
-	SetSkyBox(Device3, L"files/OutputCube.dds", SkyBoxTexture3, SkyBoxVertexBuffer3, SkyBoxIndexBuffer3, SkyBoxConstantBuffer3);
+	// Setting Indexed Geometry for Scene 3
+	SetSkyBox(Device3, L"files/Stars.dds", SkyBoxTexture3, SkyBoxVertexBuffer3, SkyBoxIndexBuffer3, SkyBoxConstantBuffer3);
 
-
-
-
+	// Setting Object
+	SetModel("Files/Satellite.obj", Satellite, SatelliteVertexBuffer, SatelliteIndexBuffer, SatelliteConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/Satellite.dds", NULL, &SatelliteTexture);
 	
-	// Loading Indexed Geometry Textures
-	CreateDDSTextureFromFile(m_pDevice, L"files/Box_Circuit.dds", NULL, &m_pTexture);
-	CreateDDSTextureFromFile(m_pDevice, L"files/bownCartoonGround_seamless.dds", NULL, &FloorTexture);
-	CreateDDSTextureFromFile(m_pDevice, L"files/greendragon.dds", NULL, &GeometryTexture);
+	SetModel("Files/Moon.obj", Moon, MoonVertexBuffer, MoonIndexBuffer, MoonConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/Moon.dds", NULL, &MoonTexture);
 
-	// Loading Object Textures 
-	CreateDDSTextureFromFile(m_pDevice, L"files/icium.dds", NULL, &PryamidTexture);
+	SetModel("Files/Earth.obj", Earth, EarthVertexBuffer, EarthIndexBuffer, EarthConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/Earth.dds", NULL, &EarthTexture);
+
+	SetModel("Files/Sun.obj", Sun, SunVertexBuffer, SunIndexBuffer, SunConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/Sun.dds", NULL, &SunTexture);
+
+
+	// Setting Indexed Geometry for Scene 4
+	SetSkyBox(Device4, L"files/NW_Entropic.dds", SkyBoxTexture4, SkyBoxVertexBuffer4, SkyBoxIndexBuffer4, SkyBoxConstantBuffer4);
+
 
 
 	/* Setting Lighting */
@@ -598,6 +685,8 @@ HRESULT Initialize() {
 	lightbuffdesc.BindFlags	= D3D11_BIND_CONSTANT_BUFFER;
 	lightbuffdesc.ByteWidth	= sizeof(Lighting) * 3;
 	m_pDevice->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer);
+	Device3->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer3);
+	Device4->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer4);
 
 
 
@@ -614,6 +703,7 @@ HRESULT Initialize() {
 	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
 	DeviceTemp->CreateSamplerState(&sampDesc, &SamplerStateTemp);
 	Device3->CreateSamplerState(&sampDesc, &SamplerState3);
+	Device4->CreateSamplerState(&sampDesc, &SamplerState4);
 
 
 
@@ -637,6 +727,11 @@ HRESULT Initialize() {
 	Device3->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SkyBoxPixelShader3);
 	Device3->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &SkyBoxVertexShader3);
 
+	// Decleraing Shaders for Scene 4
+	Device4->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VertexShader4);
+	Device4->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PixelShader4);
+	Device4->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SkyBoxPixelShader4);
+	Device4->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &SkyBoxVertexShader4);
 
 
 	// Defining the Input Layout
@@ -654,6 +749,7 @@ HRESULT Initialize() {
 	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
 	DeviceTemp->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &InputTemp);
 	Device3->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &Input3);
+	Device4->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &Input4);
 
 	// Initializing the world matrix
 	WorldMatrix		= XMMatrixIdentity();
@@ -665,13 +761,25 @@ HRESULT Initialize() {
 
 	PryamidMatrix	= XMMatrixIdentity();
 	PryamidMatrix	= XMMatrixTranslation(5, -0.5f, 15.0f);
+	
+	EarthMatrix		= XMMatrixIdentity();
+	EarthMatrix		= XMMatrixScaling(0.01f,0.01f,0.01f);
+
+	SatelliteMatrix = XMMatrixIdentity();
+	MoonMatrix		= XMMatrixIdentity();
+
+	SunMatrix		= XMMatrixIdentity();
+	SunMatrix		= XMMatrixScaling(3.0f,3.0f,3.0f);
+
 
 	GeometryMatrix = XMMatrixIdentity();
 
 	SkyBoxMatrix = XMMatrixIdentity();
 	SkyBoxMatrix2 = XMMatrixIdentity();
 	SkyBoxMatrix3 = XMMatrixIdentity();
-	WallMatrix		= XMMatrixIdentity();
+	SkyBoxMatrix4 = XMMatrixIdentity();
+
+	WallMatrix = XMMatrixIdentity();
 
 	CameraView = XMMatrixLookAtLH(Eye, Focus, Up);
 	CameraProjection = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
@@ -754,9 +862,8 @@ bool Run() {
 
 		// Rotating Cube
 		//CubeMatrix = XMMatrixRotationY(t);
-		if (cubeverts < 15) {
-			CubeMatrix = XMMatrixMultiply(XMMatrixRotationY(t), XMMatrixTranslation(0, 0 + cubeverts, 0));
-		}
+		CubeMatrix = XMMatrixMultiply(XMMatrixRotationY(t), XMMatrixTranslation(0, 0 + cubeverts, 0));
+
 
 		// Clearing Depth Buffer
 		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencil, D3D11_CLEAR_DEPTH, 1.0f, NULL);
@@ -788,7 +895,7 @@ bool Run() {
 		DrawIndexedGeometry(m_pDeviceContext, SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer, m_pInput, m_pSkyBoxVertexShader, m_pSkyBoxPixelShader, 36);
 		DrawIndexedGeometry(m_pDeviceContext, FloorTexture, FloorVertexBuffer, FloorIndexBuffer, FloorConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 6);
 		DrawIndexedGeometry(m_pDeviceContext, m_pTexture, m_pVertexBuffer, m_pIndexBuffer, m_pConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 36);
-		DrawModel(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture, m_pInput, m_pVertexShader, m_pPixelShader);
+		DrawModel(Pryamid, m_pDeviceContext, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture, m_pInput, m_pVertexShader, m_pPixelShader);
 
 		//-- Render To Texture --------------------------------------------------------------------------------------------------------
 		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
@@ -804,7 +911,7 @@ bool Run() {
 
 		DrawIndexedGeometry(m_pDeviceContext, SkyBoxTexture, SkyBoxVertexBuffer, SkyBoxIndexBuffer, SkyBoxConstantBuffer, m_pInput, m_pSkyBoxVertexShader, m_pSkyBoxPixelShader, 36);
 		DrawIndexedGeometry(m_pDeviceContext, FloorTexture, FloorVertexBuffer, FloorIndexBuffer, FloorConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 6);
-		DrawModel(Pryamid, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture, m_pInput, m_pVertexShader, m_pPixelShader);
+		DrawModel(Pryamid, m_pDeviceContext, PryamidVertexBuffer, PryamidIndexBuffer, PryamidConstantBuffer, PryamidTexture, m_pInput, m_pVertexShader, m_pPixelShader);
 		DrawIndexedGeometry(m_pDeviceContext, m_pTexture, m_pVertexBuffer, m_pIndexBuffer, m_pConstantBuffer, m_pInput, m_pVertexShader, m_pPixelShader, 36);
 
 		// Setting Target View
@@ -937,7 +1044,7 @@ bool Run() {
 		#pragma endregion
 	}
 	else if (SwapSceneInt == 2) {
-
+		#pragma region Scene3
 		// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
 		CameraMovement(ViewMatrix, ViewMatrixSub, ProjectionMatrix);
 
@@ -948,23 +1055,90 @@ bool Run() {
 		DeviceContext3->RSSetViewports(1, &m_ViewPort[0]);
 
 		// Clearing Back Buffer
-		DeviceContext3->ClearRenderTargetView(Render3, Colors::DarkBlue);
+		DeviceContext3->ClearRenderTargetView(Render3, Colors::Black);
 
 		// Setting Sampler State
 		DeviceContext3->PSSetSamplers(NULL, 1, &SamplerState3);
 
+		// Setting Light Buffer
+		DeviceContext3->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer3);
+
 		// Clearing Depth Buffer
 		DeviceContext3->ClearDepthStencilView(DepthStencil3, D3D11_CLEAR_DEPTH, 1.0f, NULL);
 
+		// Earth
+		EarthMatrix = XMMatrixMultiply(XMMatrixTranslation(-3000, 0, -3000), SunMatrix);
+		EarthMatrix = XMMatrixMultiply(EarthMatrix, XMMatrixScaling(0.005f, 0.005f, 0.005f));
+		EarthMatrix = XMMatrixMultiply(EarthMatrix, XMMatrixRotationY(-t * 0.5f));
+		EarthMatrix = XMMatrixRotationY(-t * 0.5f) * EarthMatrix;
+
+		// Moon
+		MoonMatrix = XMMatrixMultiply(XMMatrixTranslation(5000, 0, 5000), EarthMatrix);
+		MoonMatrix = XMMatrixMultiply(MoonMatrix, XMMatrixScaling(15, 15, 15));
+		MoonMatrix.r[3] = EarthMatrix.r[3];
+		MoonMatrix = XMMatrixMultiply(XMMatrixTranslation(-40, 0, -40), MoonMatrix);
+		MoonMatrix = XMMatrixMultiply(XMMatrixRotationY(t), MoonMatrix);
+		MoonMatrix = XMMatrixRotationY(t) * MoonMatrix;
+
+		// Satellite 
+		SatelliteMatrix = XMMatrixMultiply(XMMatrixTranslation(5000, 0, 5000), EarthMatrix);
+		SatelliteMatrix = XMMatrixMultiply(SatelliteMatrix, XMMatrixScaling(250, 250, 250));
+		SatelliteMatrix = XMMatrixMultiply(SatelliteMatrix, XMMatrixRotationZ(15));
+		SatelliteMatrix.r[3] = EarthMatrix.r[3];
+		SatelliteMatrix = XMMatrixMultiply(XMMatrixTranslation(2, 0, 2), SatelliteMatrix);
+		SatelliteMatrix = XMMatrixRotationY(t) * SatelliteMatrix;
+		SatelliteMatrix = XMMatrixRotationY(t * 2) * SatelliteMatrix;
+
 		// Update variables
 		UpdateConstant(SkyBoxMatrix, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer3, DeviceContext3);
+		UpdateConstant(SatelliteMatrix, ViewMatrix, ProjectionMatrix, SatelliteConstantBuffer, DeviceContext3);
+		UpdateConstant(EarthMatrix, ViewMatrix, ProjectionMatrix, EarthConstantBuffer, DeviceContext3);
+		UpdateConstant(SunMatrix, ViewMatrix, ProjectionMatrix, SunConstantBuffer, DeviceContext3);
+		UpdateConstant(MoonMatrix, ViewMatrix, ProjectionMatrix, MoonConstantBuffer, DeviceContext3);
 
 		// Drawing Objects
 		DrawIndexedGeometry(DeviceContext3, SkyBoxTexture3, SkyBoxVertexBuffer3, SkyBoxIndexBuffer3, SkyBoxConstantBuffer3, Input3, SkyBoxVertexShader3, SkyBoxPixelShader3, 36);
+		DrawModel(Sun, DeviceContext3, SunVertexBuffer, SunIndexBuffer, SunConstantBuffer, SunTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Earth, DeviceContext3, EarthVertexBuffer, EarthIndexBuffer, EarthConstantBuffer, EarthTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Satellite, DeviceContext3, SatelliteVertexBuffer, SatelliteIndexBuffer, SatelliteConstantBuffer, SatelliteTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Moon, DeviceContext3, MoonVertexBuffer, MoonIndexBuffer, MoonConstantBuffer, MoonTexture, Input3, VertexShader3, PixelShader3);
 
 		/* Presenting our back buffer to our front buffer */
 		Swap3->Present(0, 0);
+		#pragma endregion
+	}
+	else if (SwapSceneInt == 3) {
+		#pragma region Scene4
+		// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+		CameraMovement(ViewMatrix, ViewMatrixSub, ProjectionMatrix);
 
+		// Setting Target View
+		DeviceContext4->OMSetRenderTargets(1, &Render4, DepthStencil4);
+
+		// Setting Viewport
+		DeviceContext4->RSSetViewports(1, &m_ViewPort[0]);
+
+		// Clearing Back Buffer
+		DeviceContext4->ClearRenderTargetView(Render4, Colors::Black);
+
+		// Setting Sampler State
+		DeviceContext4->PSSetSamplers(NULL, 1, &SamplerState4);
+
+		// Setting Light Buffer
+		DeviceContext4->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer4);
+
+		// Clearing Depth Buffer
+		DeviceContext4->ClearDepthStencilView(DepthStencil4, D3D11_CLEAR_DEPTH, 1.0f, NULL);
+
+		// Update variables
+		UpdateConstant(SkyBoxMatrix4, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer4, DeviceContext4);
+
+		// Drawing Objects
+		DrawIndexedGeometry(DeviceContext4, SkyBoxTexture4, SkyBoxVertexBuffer4, SkyBoxIndexBuffer4, SkyBoxConstantBuffer4, Input4, SkyBoxVertexShader4, SkyBoxPixelShader4, 36);
+
+		/* Presenting our back buffer to our front buffer */
+		Swap4->Present(0, 0);
+		#pragma endregion
 	}
 	return true;
 }
@@ -1000,7 +1174,7 @@ void Shutdown() {
 	if (FloorTexture) { FloorTexture->Release(); }
 
 	if (LightConstantBuffer) { LightConstantBuffer->Release(); }
-	
+
 	if (GeometryVertexBuffer) { GeometryVertexBuffer->Release(); }
 	if (GeometryIndexBuffer) { GeometryIndexBuffer->Release(); }
 	if (GeometryConstantBuffer) { GeometryConstantBuffer->Release(); }
@@ -1020,8 +1194,6 @@ void Shutdown() {
 
 	if (CameraTexture2D) { CameraTexture2D->Release(); }
 	if (CameraRender) { CameraRender->Release(); }
-
-
 
 	// Scene 2
 	if (RenderTemp) { RenderTemp->Release(); }
@@ -1080,6 +1252,46 @@ void Shutdown() {
 	if (SkyBoxConstantBuffer3) { SkyBoxConstantBuffer3->Release(); }
 	if (SkyBoxTexture3) { SkyBoxTexture3->Release(); }
 
+	if (LightConstantBuffer3) { LightConstantBuffer3->Release(); }
+
+	if (SatelliteVertexBuffer) { SatelliteVertexBuffer->Release(); }
+	if (SatelliteIndexBuffer) { SatelliteIndexBuffer->Release(); }
+	if (SatelliteConstantBuffer) { SatelliteConstantBuffer->Release(); }
+	if (SatelliteTexture) { SatelliteTexture->Release(); }
+	if (EarthVertexBuffer) { EarthVertexBuffer->Release(); }
+	if (EarthIndexBuffer) { EarthIndexBuffer->Release(); }
+	if (EarthConstantBuffer) { EarthConstantBuffer->Release(); }
+	if (EarthTexture) { EarthTexture->Release(); }
+	if (SunVertexBuffer) { SunVertexBuffer->Release(); }
+	if (SunIndexBuffer) { SunIndexBuffer->Release(); }
+	if (SunConstantBuffer) { SunConstantBuffer->Release(); }
+	if (SunTexture) { SunTexture->Release(); }
+	if (MoonVertexBuffer) { MoonVertexBuffer->Release(); }
+	if (MoonIndexBuffer) { MoonIndexBuffer->Release(); }
+	if (MoonConstantBuffer) { MoonConstantBuffer->Release(); }
+	if (MoonTexture) { MoonTexture->Release(); }
+
+	// Scene 4
+	if (Render4) { Render4->Release(); }
+	if (Swap4) { Swap4->Release(); }
+	if (Device4) { Device4->Release(); }
+	if (DeviceContext4) { DeviceContext4->Release(); }
+	if (BackBuffer4) { BackBuffer4->Release(); }
+	if (Input4) { Input4->Release(); }
+	if (DepthStencil4) { DepthStencil4->Release(); }
+	if (SamplerState4) { SamplerState4->Release(); }
+	if (Texture2D4) { Texture2D4->Release(); }
+	if (VertexShader4) { VertexShader4->Release(); }
+	if (PixelShader4) { PixelShader4->Release(); }
+
+	if (SkyBoxVertexShader4) { SkyBoxVertexShader4->Release(); }
+	if (SkyBoxPixelShader4) { SkyBoxPixelShader4->Release(); }
+	if (SkyBoxVertexBuffer4) { SkyBoxVertexBuffer4->Release(); }
+	if (SkyBoxIndexBuffer4) { SkyBoxIndexBuffer4->Release(); }
+	if (SkyBoxConstantBuffer4) { SkyBoxConstantBuffer4->Release(); }
+	if (SkyBoxTexture4) { SkyBoxTexture4->Release(); }
+
+	if (LightConstantBuffer4) { LightConstantBuffer4->Release(); }
 
 	if (CameraResource) { CameraResource->Release(); }
 }
@@ -1352,35 +1564,35 @@ void SetSkyBox(ID3D11Device* &device, const wchar_t* fileName, ID3D11ShaderResou
 {
 	SIMPLE_VERTEX Vertex[] = {
 		#pragma region SkyVerts
-		{ XMFLOAT4(-100.0f, -100.0f, -100.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, -100.0f, -100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, -100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-100.0f, -100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, -500.0f, -500.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, -500.0f, -500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, -500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, -500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-100.0f, 100.0f, -100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, 100.0f, -100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, 100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-100.0f, 100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, 500.0f, -500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, 500.0f, -500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, 500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, 500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(100.0f, -100.0f, 100.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, -100.0f, -100.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, 100.0f, -100.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, 100.0f, 100.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, -500.0f, 500.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, -500.0f, -500.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, 500.0f, -500.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, 500.0f, 500.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
 
-		{ XMFLOAT4(-100.0f, -100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-100.0f, -100.0f, -100.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-100.0f, 100.0f, -100.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
-		{ XMFLOAT4(-100.0f, 100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, -500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, -500.0f, -500.0f, 1.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, 500.0f, -500.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, 500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
 ////////////////
-		{ XMFLOAT4(-100.0f, -100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, -100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, 100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
-		{ XMFLOAT4(-100.0f, 100.0f, 100.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, -500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, -500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, 500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, 500.0f, 500.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
 ////////////////
-		{ XMFLOAT4(-100.0f, -100.0f, -100.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, -100.0f, -100.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(100.0f, 100.0f, -100.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
-		{ XMFLOAT4(-100.0f, 100.0f, -100.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, -500.0f, -500.0f, 1.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, -500.0f, -500.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(500.0f, 500.0f, -500.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(-500.0f, 500.0f, -500.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 0.0f),	XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
 		#pragma endregion
 	};
 
@@ -1733,29 +1945,29 @@ void DrawGSGeometry() {
 	m_pDeviceContext->GSSetShader(NULL, NULL, NULL);
 }
 
-void DrawModel(ObjLoader & model, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader)
+void DrawModel(ObjLoader & model, ID3D11DeviceContext * devicecontext, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11ShaderResourceView* texture, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader)
 {
 	unsigned int	strides = sizeof(SIMPLE_VERTEX);
 	unsigned int	offsets = 0;
 	// Setting VertexBuffer
-	m_pDeviceContext->IASetVertexBuffers(NULL, 1, &vertexBuffer, &strides, &offsets);
+	devicecontext->IASetVertexBuffers(NULL, 1, &vertexBuffer, &strides, &offsets);
 	// Setting Input Layout
-	m_pDeviceContext->IASetInputLayout(input);
+	devicecontext->IASetInputLayout(input);
 	// Setting Index Buffer
-	m_pDeviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, NULL);
+	devicecontext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, NULL);
 	// Setting Topology
-	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	devicecontext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	/* Setting Vertex Shader */
-	m_pDeviceContext->VSSetShader(vertexShader, nullptr, NULL);
+	devicecontext->VSSetShader(vertexShader, nullptr, NULL);
 	// Setting Constant Buffer
-	m_pDeviceContext->VSSetConstantBuffers(NULL, 1, &constantBuffer);
+	devicecontext->VSSetConstantBuffers(NULL, 1, &constantBuffer);
 	/* Setting Pixel Shader */
-	m_pDeviceContext->PSSetShader(pixelShader, nullptr, NULL);
+	devicecontext->PSSetShader(pixelShader, nullptr, NULL);
 	// Setting Texture Resource
-	m_pDeviceContext->PSSetShaderResources(NULL, 1, &texture);
+	devicecontext->PSSetShaderResources(NULL, 1, &texture);
 
 	// Drawing Indexed Model
-	m_pDeviceContext->DrawIndexed(model.GetIndex().size(), 0, 0);
+	devicecontext->DrawIndexed(model.GetIndex().size(), 0, 0);
 }
 
 void UpdateConstant(XMMATRIX &geometryMatrix, XMMATRIX &viewMatrix, XMMATRIX &projectionMatrix, ID3D11Buffer* &constantBuffer, ID3D11DeviceContext* &deviceContext) {
@@ -1897,14 +2109,14 @@ void SceneManagment() {
 		SwapSceneInt++;
 		if (SwapSceneInt == 1) {
 			SwapCameraInt = 0;
-			ViewMatrix = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrixSub = XMMatrixMultiply(XMMatrixLookAtLH(Eye, Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrix2 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 5.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrix2Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 5.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrix3 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrix3Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrix4 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
-			ViewMatrix4Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, -25.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrixSub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, -25.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix2 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 25.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix2Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 25.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix3 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(-25.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix3Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(-25.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix4 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(25.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
+			ViewMatrix4Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(25.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
 
 			// Initializing the Viewport
 			m_ViewPort[0].Width = static_cast<float>(width * 0.5);
@@ -1938,6 +2150,19 @@ void SceneManagment() {
 		}
 		if (SwapSceneInt == 2) {
 			SwapCameraInt = 0;
+			ViewMatrix = XMMatrixLookAtLH(XMVectorSet(0.0f, 25.0f, -100.0f, 0.0f), Focus, Up);
+			ViewMatrixSub = XMMatrixLookAtLH(XMVectorSet(0.0f, 25.0f, -100.0f, 0.0f), Focus, Up);
+
+			// Initializing the Viewport
+			m_ViewPort[0].Width = static_cast<float>(width);
+			m_ViewPort[0].Height = static_cast<float>(height);
+			m_ViewPort[0].MinDepth = 0.0f;
+			m_ViewPort[0].MaxDepth = 1.0f;
+			m_ViewPort[0].TopLeftX = 0;
+			m_ViewPort[0].TopLeftY = 0;
+		}
+		if (SwapSceneInt == 3) {
+			SwapCameraInt = 0;
 			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
 
@@ -1949,7 +2174,7 @@ void SceneManagment() {
 			m_ViewPort[0].TopLeftX = 0;
 			m_ViewPort[0].TopLeftY = 0;
 		}
-		if (SwapSceneInt == 3) {
+		if (SwapSceneInt == 4) {
 			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
 
