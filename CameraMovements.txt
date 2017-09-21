@@ -52,10 +52,6 @@ G   = Down
 Y   = Up
 H   = Down
 
-
-Z = Goes through all the Scenes
-
-
 Because I have it has a button
 C = Cube Grows
 V = Reset Cube
@@ -63,9 +59,14 @@ V = Reset Cube
 
 The Geometry Made with the Geometry Shader is What the Render to Texture is being put on
 
+Z = Goes through all the Scenes
+
 Second Scene is 4 Split Screens
    X = swap through cameras
 
+Third Scene is Space Theme
+
+Forth Scene is Custome Theme
 
 
 

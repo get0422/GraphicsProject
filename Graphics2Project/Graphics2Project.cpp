@@ -178,13 +178,29 @@ ID3D11Buffer*					EarthIndexBuffer		= nullptr;
 ID3D11Buffer*					EarthConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		EarthTexture			= nullptr;
 
-// Need for Loading Satellite
+// Need for Loading Sun
 ObjLoader						Sun;
 XMMATRIX						SunMatrix;
 ID3D11Buffer*					SunVertexBuffer			= nullptr;
 ID3D11Buffer*					SunIndexBuffer			= nullptr;
 ID3D11Buffer*					SunConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		SunTexture				= nullptr;
+
+// Need for Loading Sun
+ObjLoader						SpaceShip;
+XMMATRIX						SpaceShipMatrix;
+ID3D11Buffer*					SpaceShipVertexBuffer	= nullptr;
+ID3D11Buffer*					SpaceShipIndexBuffer	= nullptr;
+ID3D11Buffer*					SpaceShipConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		SpaceShipTexture		= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Planet2;
+XMMATRIX						Planet2Matrix;
+ID3D11Buffer*					Planet2VertexBuffer		= nullptr;
+ID3D11Buffer*					Planet2IndexBuffer		= nullptr;
+ID3D11Buffer*					Planet2ConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		Planet2Texture			= nullptr;
 
 //----------------------------------------------------------------------------------------
 
@@ -568,7 +584,6 @@ HRESULT Initialize() {
 	Device3->CreateDepthStencilView(Texture2D3, &descDSV, &DepthStencil3);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 ////// For Scene 4 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
 		NULL, D3D11_SDK_VERSION, &swapdesc, &Swap4, &Device4, &m_FeatureLevel, &DeviceContext4);
@@ -581,7 +596,6 @@ HRESULT Initialize() {
 
 	Device4->CreateDepthStencilView(Texture2D4, &descDSV, &DepthStencil4);
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 
 	D3D11_TEXTURE2D_DESC texturedesc2;
@@ -653,6 +667,12 @@ HRESULT Initialize() {
 
 	SetModel("Files/Sun.obj", Sun, SunVertexBuffer, SunIndexBuffer, SunConstantBuffer, Device3);
 	CreateDDSTextureFromFile(Device3, L"files/Sun.dds", NULL, &SunTexture);
+
+	SetModel("Files/talon.obj", SpaceShip, SpaceShipVertexBuffer, SpaceShipIndexBuffer, SpaceShipConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/talon.dds", NULL, &SpaceShipTexture);
+
+	SetModel("Files/Moon.obj", Planet2, Planet2VertexBuffer, Planet2IndexBuffer, Planet2ConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/iceplanet.dds", NULL, &Planet2Texture);
 
 
 	// Setting Indexed Geometry for Scene 4
@@ -767,6 +787,8 @@ HRESULT Initialize() {
 
 	SatelliteMatrix = XMMatrixIdentity();
 	MoonMatrix		= XMMatrixIdentity();
+	SpaceShipMatrix = XMMatrixIdentity();
+	Planet2Matrix	= XMMatrixIdentity();
 
 	SunMatrix		= XMMatrixIdentity();
 	SunMatrix		= XMMatrixScaling(3.0f,3.0f,3.0f);
@@ -782,7 +804,7 @@ HRESULT Initialize() {
 	WallMatrix = XMMatrixIdentity();
 
 	CameraView = XMMatrixLookAtLH(Eye, Focus, Up);
-	CameraProjection = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	CameraProjection = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 
 	// Initializing the view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
@@ -797,14 +819,14 @@ HRESULT Initialize() {
 	// Testing with Render to Texture
 	//ProjectionMatrixTemp = XMMatrixOrthographicLH(200, 200, NearPlane, FarPlane);
 	//ViewMatrixTemp = XMMatrixLookAtLH(XMVectorSet(0.0f, 10, -5.0f, 0.0f), Focus, Up);
-	ProjectionMatrixTemp = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	ProjectionMatrixTemp = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 	ViewMatrixTemp = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5, -5.0f, 0.0f), Focus, Up);
 
 	// Initializing the projection matrix
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
-	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
-	ProjectionMatrix3 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
-	ProjectionMatrix4 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix3 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix4 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 
 	return S_OK;
 }
@@ -1066,6 +1088,27 @@ bool Run() {
 		// Clearing Depth Buffer
 		DeviceContext3->ClearDepthStencilView(DepthStencil3, D3D11_CLEAR_DEPTH, 1.0f, NULL);
 
+		// Space Ship 
+		SpaceShipMatrix = XMMatrixMultiply(XMMatrixTranslation(-3.5f, -3.5f, 0), SunMatrix);
+		SpaceShipMatrix = XMMatrixMultiply(SpaceShipMatrix, XMMatrixScaling(10.0f, 10.0f, 10.0f));
+		SpaceShipMatrix = XMMatrixMultiply(SpaceShipMatrix, XMMatrixRotationY(XM_PI));
+		SpaceShipMatrix = XMMatrixMultiply(SpaceShipMatrix, XMMatrixRotationY(t));
+
+		// Ice Planet
+		Planet2Matrix = XMMatrixMultiply(XMMatrixTranslation(-150, 0, 0), SunMatrix);
+		Planet2Matrix = XMMatrixMultiply(Planet2Matrix, XMMatrixScaling(0.25f, 0.25f, 0.25f));
+		Planet2Matrix = XMMatrixMultiply(Planet2Matrix, XMMatrixRotationY(-t * 0.25f));
+		Planet2Matrix = XMMatrixRotationY(-t * 0.25f) * Planet2Matrix;
+
+		// Satellite 
+		SatelliteMatrix = XMMatrixMultiply(XMMatrixTranslation(5000, 0, 5000), Planet2Matrix);
+		SatelliteMatrix = XMMatrixMultiply(SatelliteMatrix, XMMatrixScaling(5, 5, 5));
+		SatelliteMatrix = XMMatrixMultiply(SatelliteMatrix, XMMatrixRotationZ(15));
+		SatelliteMatrix.r[3] = Planet2Matrix.r[3];
+		SatelliteMatrix = XMMatrixMultiply(XMMatrixTranslation(2, 0, 2), SatelliteMatrix);
+		SatelliteMatrix = XMMatrixRotationY(t) * SatelliteMatrix;
+		SatelliteMatrix = XMMatrixRotationY(t * 2) * SatelliteMatrix;
+
 		// Earth
 		EarthMatrix = XMMatrixMultiply(XMMatrixTranslation(-3000, 0, -3000), SunMatrix);
 		EarthMatrix = XMMatrixMultiply(EarthMatrix, XMMatrixScaling(0.005f, 0.005f, 0.005f));
@@ -1075,19 +1118,13 @@ bool Run() {
 		// Moon
 		MoonMatrix = XMMatrixMultiply(XMMatrixTranslation(5000, 0, 5000), EarthMatrix);
 		MoonMatrix = XMMatrixMultiply(MoonMatrix, XMMatrixScaling(15, 15, 15));
+		MoonMatrix = XMMatrixMultiply(MoonMatrix, XMMatrixRotationZ(5));
 		MoonMatrix.r[3] = EarthMatrix.r[3];
 		MoonMatrix = XMMatrixMultiply(XMMatrixTranslation(-40, 0, -40), MoonMatrix);
 		MoonMatrix = XMMatrixMultiply(XMMatrixRotationY(t), MoonMatrix);
 		MoonMatrix = XMMatrixRotationY(t) * MoonMatrix;
 
-		// Satellite 
-		SatelliteMatrix = XMMatrixMultiply(XMMatrixTranslation(5000, 0, 5000), EarthMatrix);
-		SatelliteMatrix = XMMatrixMultiply(SatelliteMatrix, XMMatrixScaling(250, 250, 250));
-		SatelliteMatrix = XMMatrixMultiply(SatelliteMatrix, XMMatrixRotationZ(15));
-		SatelliteMatrix.r[3] = EarthMatrix.r[3];
-		SatelliteMatrix = XMMatrixMultiply(XMMatrixTranslation(2, 0, 2), SatelliteMatrix);
-		SatelliteMatrix = XMMatrixRotationY(t) * SatelliteMatrix;
-		SatelliteMatrix = XMMatrixRotationY(t * 2) * SatelliteMatrix;
+
 
 		// Update variables
 		UpdateConstant(SkyBoxMatrix, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer3, DeviceContext3);
@@ -1095,6 +1132,8 @@ bool Run() {
 		UpdateConstant(EarthMatrix, ViewMatrix, ProjectionMatrix, EarthConstantBuffer, DeviceContext3);
 		UpdateConstant(SunMatrix, ViewMatrix, ProjectionMatrix, SunConstantBuffer, DeviceContext3);
 		UpdateConstant(MoonMatrix, ViewMatrix, ProjectionMatrix, MoonConstantBuffer, DeviceContext3);
+		UpdateConstant(SpaceShipMatrix, ViewMatrix, ProjectionMatrix, SpaceShipConstantBuffer, DeviceContext3);
+		UpdateConstant(Planet2Matrix, ViewMatrix, ProjectionMatrix, Planet2ConstantBuffer, DeviceContext3);
 
 		// Drawing Objects
 		DrawIndexedGeometry(DeviceContext3, SkyBoxTexture3, SkyBoxVertexBuffer3, SkyBoxIndexBuffer3, SkyBoxConstantBuffer3, Input3, SkyBoxVertexShader3, SkyBoxPixelShader3, 36);
@@ -1102,6 +1141,8 @@ bool Run() {
 		DrawModel(Earth, DeviceContext3, EarthVertexBuffer, EarthIndexBuffer, EarthConstantBuffer, EarthTexture, Input3, VertexShader3, PixelShader3);
 		DrawModel(Satellite, DeviceContext3, SatelliteVertexBuffer, SatelliteIndexBuffer, SatelliteConstantBuffer, SatelliteTexture, Input3, VertexShader3, PixelShader3);
 		DrawModel(Moon, DeviceContext3, MoonVertexBuffer, MoonIndexBuffer, MoonConstantBuffer, MoonTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(SpaceShip, DeviceContext3, SpaceShipVertexBuffer, SpaceShipIndexBuffer, SpaceShipConstantBuffer, SpaceShipTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Planet2, DeviceContext3, Planet2VertexBuffer, Planet2IndexBuffer, Planet2ConstantBuffer, Planet2Texture, Input3, VertexShader3, PixelShader3);
 
 		/* Presenting our back buffer to our front buffer */
 		Swap3->Present(0, 0);
@@ -1271,6 +1312,15 @@ void Shutdown() {
 	if (MoonConstantBuffer) { MoonConstantBuffer->Release(); }
 	if (MoonTexture) { MoonTexture->Release(); }
 
+	if (SpaceShipVertexBuffer) { SpaceShipVertexBuffer->Release(); }
+	if (SpaceShipIndexBuffer) { SpaceShipIndexBuffer->Release(); }
+	if (SpaceShipConstantBuffer) { SpaceShipConstantBuffer->Release(); }
+	if (SpaceShipTexture) { SpaceShipTexture->Release(); }
+
+	if (Planet2VertexBuffer) { Planet2VertexBuffer->Release(); }
+	if (Planet2IndexBuffer) { Planet2IndexBuffer->Release(); }
+	if (Planet2ConstantBuffer) { Planet2ConstantBuffer->Release(); }
+	if (Planet2Texture) { Planet2Texture->Release(); }
 	// Scene 4
 	if (Render4) { Render4->Release(); }
 	if (Swap4) { Swap4->Release(); }
@@ -2104,6 +2154,12 @@ void SceneManagment() {
 	GetClientRect(hWnd, &rc);
 	UINT width = rc.right;
 	UINT height = rc.bottom;
+	CameraProjection = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrixTemp = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix3 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix4 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 
 	if (GetAsyncKeyState('Z') & 0x1) {
 		SwapSceneInt++;
