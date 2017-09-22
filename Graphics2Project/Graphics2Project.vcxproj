@@ -185,7 +185,9 @@
     <Image Include="Files\icium.dds" />
     <Image Include="Files\lium.dds" />
     <Image Include="Files\rarium.dds" />
-    <Image Include="Graphics2Project.ico" />
+    <Image Include="Graphics2Project.ico">
+      <DeploymentContent>false</DeploymentContent>
+    </Image>
     <Image Include="small.ico" />
   </ItemGroup>
   <ItemGroup>

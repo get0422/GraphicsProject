@@ -6,8 +6,8 @@
 #include "ObjLoader.h"
 
 #define MAX_LOADSTRING 100
-#define BACKBUFFER_WIDTH	729
-#define BACKBUFFER_HEIGHT	640
+#define BACKBUFFER_WIDTH	1089
+#define BACKBUFFER_HEIGHT	1000
 #define ColorCube			0
 #define TextureCube			1
 
@@ -186,7 +186,7 @@ ID3D11Buffer*					SunIndexBuffer			= nullptr;
 ID3D11Buffer*					SunConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		SunTexture				= nullptr;
 
-// Need for Loading Sun
+// Need for Loading Ship
 ObjLoader						SpaceShip;
 XMMATRIX						SpaceShipMatrix;
 ID3D11Buffer*					SpaceShipVertexBuffer	= nullptr;
@@ -194,7 +194,7 @@ ID3D11Buffer*					SpaceShipIndexBuffer	= nullptr;
 ID3D11Buffer*					SpaceShipConstantBuffer	= nullptr;
 ID3D11ShaderResourceView*		SpaceShipTexture		= nullptr;
 
-// Need for Loading Sun
+// Need for Loading Ice Planet
 ObjLoader						Planet2;
 XMMATRIX						Planet2Matrix;
 ID3D11Buffer*					Planet2VertexBuffer		= nullptr;
@@ -205,21 +205,7 @@ ID3D11ShaderResourceView*		Planet2Texture			= nullptr;
 //----------------------------------------------------------------------------------------
 
 
-//-Scene-3--------------------------------------------------------------------------------
-ID3D11RenderTargetView*			Render4					= nullptr;
-IDXGISwapChain*					Swap4					= nullptr;
-ID3D11Device*					Device4					= nullptr;
-ID3D11DeviceContext*			DeviceContext4			= nullptr;
-ID3D11Resource*					BackBuffer4				= nullptr;
-ID3D11InputLayout*				Input4					= nullptr;
-ID3D11VertexShader* 			VertexShader4			= nullptr;
-ID3D11PixelShader*				PixelShader4			= nullptr;
-ID3D11VertexShader* 			SkyBoxVertexShader4		= nullptr;
-ID3D11PixelShader*				SkyBoxPixelShader4		= nullptr;
-ID3D11DepthStencilView*			DepthStencil4			= nullptr;
-ID3D11SamplerState*				SamplerState4			= nullptr;
-ID3D11Texture2D*				Texture2D4				= nullptr;
-
+//-Scene-4--------------------------------------------------------------------------------
 // Need For Skybox 4
 XMMATRIX						SkyBoxMatrix4;
 ID3D11Buffer*					SkyBoxVertexBuffer4		= nullptr;
@@ -227,7 +213,61 @@ ID3D11Buffer*					SkyBoxIndexBuffer4		= nullptr;
 ID3D11Buffer*					SkyBoxConstantBuffer4	= nullptr;
 ID3D11ShaderResourceView*		SkyBoxTexture4			= nullptr;
 
+// Need for Loading Sea Floor
+XMMATRIX						SeaFloorMatrix;
+ID3D11Buffer*					SeaFloorVertexBuffer	= nullptr;
+ID3D11Buffer*					SeaFloorIndexBuffer		= nullptr;
+ID3D11Buffer*					SeaFloorConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		SeaFloorTexture			= nullptr;
+
+
+//////////////////////////////////////////////////////Need To Release///////////////////////////////////////////////
+// Need for Loading Sun
+ObjLoader						Ship1;
+XMMATRIX						Ship1Matrix;
+ID3D11Buffer*					Ship1VertexBuffer		= nullptr;
+ID3D11Buffer*					Ship1IndexBuffer		= nullptr;
+ID3D11Buffer*					Ship1ConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		Ship1Texture			= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Ship2;
+XMMATRIX						Ship2Matrix;
+ID3D11Buffer*					Ship2VertexBuffer		= nullptr;
+ID3D11Buffer*					Ship2IndexBuffer		= nullptr;
+ID3D11Buffer*					Ship2ConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		Ship2Texture			= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Ship3;
+XMMATRIX						Ship3Matrix;
+ID3D11Buffer*					Ship3VertexBuffer		= nullptr;
+ID3D11Buffer*					Ship3IndexBuffer		= nullptr;
+ID3D11Buffer*					Ship3ConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		Ship3Texture			= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Ship4;
+XMMATRIX						Ship4Matrix;
+ID3D11Buffer*					Ship4VertexBuffer		= nullptr;
+ID3D11Buffer*					Ship4IndexBuffer		= nullptr;
+ID3D11Buffer*					Ship4ConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		Ship4Texture			= nullptr;
+
 //----------------------------------------------------------------------------------------
+
+//-Scene-4--------------------------------------------------------------------------------
+// Need For Skybox 4
+XMMATRIX						SkyBoxMatrix5;
+ID3D11Buffer*					SkyBoxVertexBuffer5		= nullptr;
+ID3D11Buffer*					SkyBoxIndexBuffer5		= nullptr;
+ID3D11Buffer*					SkyBoxConstantBuffer5	= nullptr;
+ID3D11ShaderResourceView*		SkyBoxTexture5			= nullptr;
+
+
+
+//----------------------------------------------------------------------------------------
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Instancing
 ID3D11Buffer*					InstanceBuffer			= nullptr;
@@ -266,7 +306,7 @@ int SpotCount		= 0;
 // Moving Camera (Zoom/Near/Far)
 float Zoom		= 2;
 float NearPlane	= 0.01;
-float FarPlane	= 1100;
+float FarPlane	= 1750;
 
 // Change Size of Cube
 int cubeverts = 0;
@@ -287,6 +327,9 @@ ID3D11ShaderResourceView*		CameraResource			= nullptr;
 XMMATRIX	ProjectionMatrixTemp;
 XMMATRIX	ViewMatrixTemp;
 
+
+POINT cursorPos;
+
 #pragma endregion
 
 
@@ -305,6 +348,7 @@ void SetCube();
 void DrawGSGeometry();
 void DrawInstancedCube();
 void SetFloorAndGeometry();
+void SetSeaFloor();
 void DrawIndexedGeometry(ID3D11DeviceContext* deviceContext, ID3D11ShaderResourceView* texture, ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, ID3D11Buffer* constantBuffer, ID3D11InputLayout* input, ID3D11VertexShader* vertexShader, ID3D11PixelShader* pixelShader, UINT count);
 void SetSkyBox(ID3D11Device* &device, const wchar_t* fileName, ID3D11ShaderResourceView* &texture, ID3D11Buffer* &vertexBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer);
 void SetModel(const char * filename, ObjLoader & model, ID3D11Buffer* &vertBuffer, ID3D11Buffer* &indexBuffer, ID3D11Buffer* &constantBuffer, ID3D11Device* &device);
@@ -314,13 +358,15 @@ void UpdateConstant(XMMATRIX &geometryMatrix, XMMATRIX &viewMatrix, XMMATRIX &pr
 void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &viewMatrixSub, XMMATRIX &projectionMatrix);
 void LightMovment();
 void SceneManagment();
+void Resize();
 
 void SetWall();
+void SwapChainInt();
 // Microsoft::WRL::ComPtr<var> name;
 #pragma endregion
 
 
-#pragma region
+#pragma region Windows Code
 //----------------------------------------------------------------------------------------------------------
 // Entry point to the program. Initializes everything and goes into a message processing 
 // loop. Idle time is used to render the scene.
@@ -433,6 +479,13 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //----------------------------------------------------------------------------------------------------------
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+
+	// Getting The Current Width and Height of the Window
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	UINT width = rc.right;
+	UINT height = rc.bottom;
+
     switch (message)
     {
     case WM_COMMAND:
@@ -463,6 +516,55 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
+	case WM_SIZE:
+		//if (m_pSwapChain)
+		//{
+		//	m_pDeviceContext->OMSetRenderTargets(0, 0, 0);
+		//	// Release all outstanding references to the swap chain's buffers.
+		//	m_pRenderTargetView->Release();
+		//	m_pBackBuffer->Release();
+		//	// Preserve the existing buffer count and format.
+		//	// Automatically choose the width and height to match the client rect for HWNDs.
+		//	m_pSwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+		//	// Get buffer and create a render-target-view.
+		//	ID3D11Texture2D* pBuffer;
+		//	m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBuffer);
+		//	m_pDevice->CreateRenderTargetView(pBuffer, NULL, &m_pRenderTargetView);
+		//	// Perform error handling here!
+		//	pBuffer->Release();
+		//	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
+		//	// Set up the viewport.
+		//	D3D11_VIEWPORT vp;
+		//	vp.Width = width;
+		//	vp.Height = height;
+		//	vp.MinDepth = 0.0f;
+		//	vp.MaxDepth = 1.0f;
+		//	vp.TopLeftX = 0;
+		//	vp.TopLeftY = 0;
+		//	m_pDeviceContext->RSSetViewports(1, &vp);
+		//	m_pDeviceContext->RSSetViewports(0, &vp);
+		//	// Create depth stencil texture
+		//	D3D11_TEXTURE2D_DESC texturedesc;
+		//	ZeroMemory(&texturedesc, sizeof(texturedesc));
+		//	texturedesc.Width = vp.Width;
+		//	texturedesc.Height = vp.Height;
+		//	texturedesc.MipLevels = 1;
+		//	texturedesc.ArraySize = 1;
+		//	texturedesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		//	texturedesc.SampleDesc.Count = 1;
+		//	texturedesc.Usage = D3D11_USAGE_DEFAULT;
+		//	texturedesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+		//	m_pDevice->CreateTexture2D(&texturedesc, NULL, &m_pTexture2D);
+		//	// Create the depth stencil view
+		//	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+		//	ZeroMemory(&descDSV, sizeof(descDSV));
+		//	descDSV.Format = texturedesc.Format;
+		//	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		//	descDSV.Texture2D.MipSlice = NULL;
+		//	m_pDevice->CreateDepthStencilView(m_pTexture2D, &descDSV, &m_pDepthStencil);
+		//}
+		Resize();
+		break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -505,98 +607,7 @@ HRESULT Initialize() {
 	UINT width = rc.right;
 	UINT height = rc.bottom;
 
-	// Describing the SwapChain
-	DXGI_SWAP_CHAIN_DESC swapdesc;
-	ZeroMemory(&swapdesc, sizeof(DXGI_SWAP_CHAIN_DESC));
-	swapdesc.BufferCount		= 1;
-	swapdesc.BufferDesc.Format	= DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapdesc.BufferUsage		= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapdesc.Flags				= DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-	swapdesc.OutputWindow		= hWnd;
-	swapdesc.SampleDesc.Count	= 1;
-	swapdesc.SampleDesc.Quality	= NULL;
-	swapdesc.Windowed			= true;
-
-	D3D_FEATURE_LEVEL FeatureLevels[4] = { D3D_FEATURE_LEVEL_10_0,D3D_FEATURE_LEVEL_10_1,D3D_FEATURE_LEVEL_11_0,D3D_FEATURE_LEVEL_11_1 };
-
-	// Creating Device, Swap Chain and Device Conext
-	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, FeatureLevels,
-		4, D3D11_SDK_VERSION, &swapdesc, &m_pSwapChain, &m_pDevice, &m_FeatureLevel, &m_pDeviceContext);
-
-	// Initializing the SwapChain
-	m_pSwapChain->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&m_pBackBuffer));
-	m_pDevice->CreateRenderTargetView(m_pBackBuffer, NULL, &m_pRenderTargetView);
-	
-	// Create depth stencil texture
-	D3D11_TEXTURE2D_DESC texturedesc;
-	ZeroMemory(&texturedesc, sizeof(texturedesc));
-	texturedesc.Width				= width;
-	texturedesc.Height				= height;
-	texturedesc.MipLevels			= 1;
-	texturedesc.ArraySize			= 1;
-	texturedesc.Format				= DXGI_FORMAT_D24_UNORM_S8_UINT;
-	texturedesc.SampleDesc.Count	= 1;
-	texturedesc.Usage				= D3D11_USAGE_DEFAULT;
-	texturedesc.BindFlags			= D3D11_BIND_DEPTH_STENCIL;
-	m_pDevice->CreateTexture2D(&texturedesc, NULL, &m_pTexture2D);
-
-	// Create the depth stencil view
-	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
-	ZeroMemory(&descDSV, sizeof(descDSV));
-	descDSV.Format				= texturedesc.Format;
-	descDSV.ViewDimension		= D3D11_DSV_DIMENSION_TEXTURE2D;
-	descDSV.Texture2D.MipSlice	= NULL;
-	m_pDevice->CreateDepthStencilView(m_pTexture2D, &descDSV, &m_pDepthStencil);
-
-
-	// Initializing the Viewport
-	m_ViewPort[0].Width	= static_cast<float>(width);
-	m_ViewPort[0].Height	= static_cast<float>(height);
-	m_ViewPort[0].MinDepth = 0.0f;
-	m_ViewPort[0].MaxDepth = 1.0f;
-	m_ViewPort[0].TopLeftX = 0;
-	m_ViewPort[0].TopLeftY = 0;
-
-
-////// For Scene 2 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
-		NULL, D3D11_SDK_VERSION, &swapdesc, &SwapTemp, &DeviceTemp, &m_FeatureLevel, &DeviceContextTemp);
-
-	// TODO: PART 1 STEP 4
-	SwapTemp->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&BackBufferTemp));
-	DeviceTemp->CreateRenderTargetView(BackBufferTemp, NULL, &RenderTemp);
-
-	DeviceTemp->CreateTexture2D(&texturedesc, NULL, &Texture2DTemp);
-
-	DeviceTemp->CreateDepthStencilView(Texture2DTemp, &descDSV, &DepthStencilTemp);
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-////// For Scene 3 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
-		NULL, D3D11_SDK_VERSION, &swapdesc, &Swap3, &Device3, &m_FeatureLevel, &DeviceContext3);
-
-	// TODO: PART 1 STEP 4
-	Swap3->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&BackBuffer3));
-	Device3->CreateRenderTargetView(BackBuffer3, NULL, &Render3);
-
-	Device3->CreateTexture2D(&texturedesc, NULL, &Texture2D3);
-
-	Device3->CreateDepthStencilView(Texture2D3, &descDSV, &DepthStencil3);
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-////// For Scene 4 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
-		NULL, D3D11_SDK_VERSION, &swapdesc, &Swap4, &Device4, &m_FeatureLevel, &DeviceContext4);
-
-	// TODO: PART 1 STEP 4
-	Swap4->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&BackBuffer4));
-	Device4->CreateRenderTargetView(BackBuffer4, NULL, &Render4);
-
-	Device4->CreateTexture2D(&texturedesc, NULL, &Texture2D4);
-
-	Device4->CreateDepthStencilView(Texture2D4, &descDSV, &DepthStencil4);
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+	SwapChainInt();
 
 	D3D11_TEXTURE2D_DESC texturedesc2;
 	ZeroMemory(&texturedesc2, sizeof(texturedesc2));
@@ -645,7 +656,7 @@ HRESULT Initialize() {
 
 
 	// Setting Indexed Geometry for Scene 2
-	SetSkyBox(DeviceTemp, L"files/HW_Blue.dds", SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2);
+	SetSkyBox(DeviceTemp, L"files/NW_Entropic.dds", SkyBoxTexture2, SkyBoxVertexBuffer2, SkyBoxIndexBuffer2, SkyBoxConstantBuffer2);
 	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Circuit.dds", NULL, &WallTexture1);
 	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Ice.dds", NULL, &WallTexture2);
 	CreateDDSTextureFromFile(DeviceTemp, L"files/Box_Purple2.dds", NULL, &WallTexture3);
@@ -655,29 +666,50 @@ HRESULT Initialize() {
 	// Setting Indexed Geometry for Scene 3
 	SetSkyBox(Device3, L"files/Stars.dds", SkyBoxTexture3, SkyBoxVertexBuffer3, SkyBoxIndexBuffer3, SkyBoxConstantBuffer3);
 
-	// Setting Object
+	// Setting Objects that Orbit Planets
 	SetModel("Files/Satellite.obj", Satellite, SatelliteVertexBuffer, SatelliteIndexBuffer, SatelliteConstantBuffer, Device3);
 	CreateDDSTextureFromFile(Device3, L"files/Satellite.dds", NULL, &SatelliteTexture);
 	
 	SetModel("Files/Moon.obj", Moon, MoonVertexBuffer, MoonIndexBuffer, MoonConstantBuffer, Device3);
 	CreateDDSTextureFromFile(Device3, L"files/Moon.dds", NULL, &MoonTexture);
 
+	// Planets
 	SetModel("Files/Earth.obj", Earth, EarthVertexBuffer, EarthIndexBuffer, EarthConstantBuffer, Device3);
 	CreateDDSTextureFromFile(Device3, L"files/Earth.dds", NULL, &EarthTexture);
 
 	SetModel("Files/Sun.obj", Sun, SunVertexBuffer, SunIndexBuffer, SunConstantBuffer, Device3);
 	CreateDDSTextureFromFile(Device3, L"files/Sun.dds", NULL, &SunTexture);
 
-	SetModel("Files/talon.obj", SpaceShip, SpaceShipVertexBuffer, SpaceShipIndexBuffer, SpaceShipConstantBuffer, Device3);
-	CreateDDSTextureFromFile(Device3, L"files/talon.dds", NULL, &SpaceShipTexture);
-
 	SetModel("Files/Moon.obj", Planet2, Planet2VertexBuffer, Planet2IndexBuffer, Planet2ConstantBuffer, Device3);
 	CreateDDSTextureFromFile(Device3, L"files/iceplanet.dds", NULL, &Planet2Texture);
 
+	// Setting Space Ship
+	SetModel("Files/talon.obj", SpaceShip, SpaceShipVertexBuffer, SpaceShipIndexBuffer, SpaceShipConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/talon.dds", NULL, &SpaceShipTexture);
+
 
 	// Setting Indexed Geometry for Scene 4
-	SetSkyBox(Device4, L"files/NW_Entropic.dds", SkyBoxTexture4, SkyBoxVertexBuffer4, SkyBoxIndexBuffer4, SkyBoxConstantBuffer4);
+	SetSkyBox(Device3, L"files/HW_Blue.dds", SkyBoxTexture4, SkyBoxVertexBuffer4, SkyBoxIndexBuffer4, SkyBoxConstantBuffer4);
+	
+	// Setting Sea Floor
+	SetSeaFloor();
+	CreateDDSTextureFromFile(Device3, L"files/Sea_Texture.dds", NULL, &SeaFloorTexture);
 
+	// Setting Pirate Ships
+	SetModel("Files/Ship1.obj", Ship1, Ship1VertexBuffer, Ship1IndexBuffer, Ship1ConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/Ship1.dds", NULL, &Ship1Texture);
+
+	SetModel("Files/Line.obj", Ship2, Ship2VertexBuffer, Ship2IndexBuffer, Ship2ConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/Line.dds", NULL, &Ship2Texture);
+
+	SetModel("Files/Line1.obj", Ship3, Ship3VertexBuffer, Ship3IndexBuffer, Ship3ConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/Line.dds", NULL, &Ship3Texture);
+
+	SetModel("Files/Line2.obj", Ship4, Ship4VertexBuffer, Ship4IndexBuffer, Ship4ConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/Line.dds", NULL, &Ship4Texture);
+
+	// Setting Indexed Geometry for Scene 5
+	SetSkyBox(Device3, L"files/SunsetSkybox.dds", SkyBoxTexture5, SkyBoxVertexBuffer5, SkyBoxIndexBuffer5, SkyBoxConstantBuffer5);
 
 
 	/* Setting Lighting */
@@ -695,7 +727,7 @@ HRESULT Initialize() {
 	Lights[1].Radius	= XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
 
 	// Directional Lighting
-	Lights[2].Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	Lights[2].Direction = XMFLOAT4(1.0f, -1.0f, -1.0f, 0.0f);
 	Lights[2].Color		= XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Setting up the Light Buffer
@@ -706,26 +738,7 @@ HRESULT Initialize() {
 	lightbuffdesc.ByteWidth	= sizeof(Lighting) * 3;
 	m_pDevice->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer);
 	Device3->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer3);
-	Device4->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer4);
-
-
-
-	// Creating the sample state
-	D3D11_SAMPLER_DESC sampDesc;
-	ZeroMemory(&sampDesc, sizeof(sampDesc));
-	sampDesc.Filter			= D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	sampDesc.AddressU		= D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressV		= D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressW		= D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.ComparisonFunc	= D3D11_COMPARISON_NEVER;
-	sampDesc.MinLOD			= 0;
-	sampDesc.MaxLOD			= D3D11_FLOAT32_MAX;
-	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
-	DeviceTemp->CreateSamplerState(&sampDesc, &SamplerStateTemp);
-	Device3->CreateSamplerState(&sampDesc, &SamplerState3);
-	Device4->CreateSamplerState(&sampDesc, &SamplerState4);
-
-
+	Device3->CreateBuffer(&lightbuffdesc, nullptr, &LightConstantBuffer4);
 
 	// Decleraing Shaders for Scene 1
 	m_pDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &m_pVertexShader);
@@ -747,13 +760,6 @@ HRESULT Initialize() {
 	Device3->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SkyBoxPixelShader3);
 	Device3->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &SkyBoxVertexShader3);
 
-	// Decleraing Shaders for Scene 4
-	Device4->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VertexShader4);
-	Device4->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PixelShader4);
-	Device4->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SkyBoxPixelShader4);
-	Device4->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &SkyBoxVertexShader4);
-
-
 	// Defining the Input Layout
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
@@ -769,7 +775,6 @@ HRESULT Initialize() {
 	m_pDevice->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &m_pInput);
 	DeviceTemp->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &InputTemp);
 	Device3->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &Input3);
-	Device4->CreateInputLayout(layout, numberOfElements, Trivial_VS, sizeof(Trivial_VS), &Input4);
 
 	// Initializing the world matrix
 	WorldMatrix		= XMMatrixIdentity();
@@ -782,6 +787,8 @@ HRESULT Initialize() {
 	PryamidMatrix	= XMMatrixIdentity();
 	PryamidMatrix	= XMMatrixTranslation(5, -0.5f, 15.0f);
 	
+	WallMatrix = XMMatrixIdentity();
+
 	EarthMatrix		= XMMatrixIdentity();
 	EarthMatrix		= XMMatrixScaling(0.01f,0.01f,0.01f);
 
@@ -793,15 +800,26 @@ HRESULT Initialize() {
 	SunMatrix		= XMMatrixIdentity();
 	SunMatrix		= XMMatrixScaling(3.0f,3.0f,3.0f);
 
-
 	GeometryMatrix = XMMatrixIdentity();
 
 	SkyBoxMatrix = XMMatrixIdentity();
 	SkyBoxMatrix2 = XMMatrixIdentity();
 	SkyBoxMatrix3 = XMMatrixIdentity();
-	SkyBoxMatrix4 = XMMatrixIdentity();
 
-	WallMatrix = XMMatrixIdentity();
+	SeaFloorMatrix = XMMatrixIdentity();
+	SeaFloorMatrix = XMMatrixTranslation(0, -0.5f, 0);
+	Ship1Matrix = XMMatrixIdentity();
+
+	Ship2Matrix = XMMatrixIdentity();
+	Ship2Matrix = XMMatrixTranslation(25, 10.3f, 40) * XMMatrixRotationY(XM_PI / 3);
+
+	Ship3Matrix = XMMatrixIdentity();
+	Ship3Matrix = XMMatrixTranslation(0, 1.82f, 0) * XMMatrixRotationY(XM_PI);
+
+	Ship4Matrix = XMMatrixIdentity();
+	Ship4Matrix = XMMatrixTranslation(0, 1.82f, 5) * XMMatrixRotationY(XM_PI);
+
+
 
 	CameraView = XMMatrixLookAtLH(Eye, Focus, Up);
 	CameraProjection = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
@@ -816,9 +834,7 @@ HRESULT Initialize() {
 	ViewMatrix3Sub = XMMatrixLookAtLH(XMVectorSet(-5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
 	ViewMatrix4Sub = XMMatrixLookAtLH(XMVectorSet(5.0f, 1.5f, 0.0f, 0.0f), Focus, Up);
 
-	// Testing with Render to Texture
-	//ProjectionMatrixTemp = XMMatrixOrthographicLH(200, 200, NearPlane, FarPlane);
-	//ViewMatrixTemp = XMMatrixLookAtLH(XMVectorSet(0.0f, 10, -5.0f, 0.0f), Focus, Up);
+	// Tests with Render to Texture
 	ProjectionMatrixTemp = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 	ViewMatrixTemp = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5, -5.0f, 0.0f), Focus, Up);
 
@@ -828,14 +844,123 @@ HRESULT Initialize() {
 	ProjectionMatrix3 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 	ProjectionMatrix4 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 
+	//ShowCursor(FALSE);
 	return S_OK;
 }
 
+void SwapChainInt() {
+
+	// Getting The Current Width and Height of the Window
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	UINT width = rc.right;
+	UINT height = rc.bottom;
+
+	// Describing the SwapChain
+	DXGI_SWAP_CHAIN_DESC swapdesc;
+	ZeroMemory(&swapdesc, sizeof(DXGI_SWAP_CHAIN_DESC));
+	swapdesc.BufferCount = 1;
+	swapdesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapdesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapdesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	swapdesc.OutputWindow = hWnd;
+	swapdesc.SampleDesc.Count = 8;
+	swapdesc.SampleDesc.Quality = NULL;
+	swapdesc.Windowed = true;
+
+	D3D_FEATURE_LEVEL FeatureLevels[4] = { D3D_FEATURE_LEVEL_10_0,D3D_FEATURE_LEVEL_10_1,D3D_FEATURE_LEVEL_11_0,D3D_FEATURE_LEVEL_11_1 };
+
+	// Creating Device, Swap Chain and Device Conext
+	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, FeatureLevels,
+		4, D3D11_SDK_VERSION, &swapdesc, &m_pSwapChain, &m_pDevice, &m_FeatureLevel, &m_pDeviceContext);
+
+	// Initializing the SwapChain
+	m_pSwapChain->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&m_pBackBuffer));
+	m_pDevice->CreateRenderTargetView(m_pBackBuffer, NULL, &m_pRenderTargetView);
+
+	// Create depth stencil texture
+	D3D11_TEXTURE2D_DESC texturedesc;
+	ZeroMemory(&texturedesc, sizeof(texturedesc));
+	texturedesc.Width = width;
+	texturedesc.Height = height;
+	texturedesc.MipLevels = 1;
+	texturedesc.ArraySize = 1;
+	texturedesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	texturedesc.SampleDesc.Count = 8;
+	texturedesc.Usage = D3D11_USAGE_DEFAULT;
+	texturedesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	m_pDevice->CreateTexture2D(&texturedesc, NULL, &m_pTexture2D);
+
+	// Create the depth stencil view
+	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+	ZeroMemory(&descDSV, sizeof(descDSV));
+	descDSV.Format = texturedesc.Format;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+	descDSV.Texture2D.MipSlice = NULL;
+	m_pDevice->CreateDepthStencilView(m_pTexture2D, &descDSV, &m_pDepthStencil);
+
+
+	// Initializing the Viewport
+	m_ViewPort[0].Width = static_cast<float>(width);
+	m_ViewPort[0].Height = static_cast<float>(height);
+	m_ViewPort[0].MinDepth = 0.0f;
+	m_ViewPort[0].MaxDepth = 1.0f;
+	m_ViewPort[0].TopLeftX = 0;
+	m_ViewPort[0].TopLeftY = 0;
+
+
+	////// For Scene 2 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
+		NULL, D3D11_SDK_VERSION, &swapdesc, &SwapTemp, &DeviceTemp, &m_FeatureLevel, &DeviceContextTemp);
+
+	// TODO: PART 1 STEP 4
+	SwapTemp->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&BackBufferTemp));
+	DeviceTemp->CreateRenderTargetView(BackBufferTemp, NULL, &RenderTemp);
+
+	DeviceTemp->CreateTexture2D(&texturedesc, NULL, &Texture2DTemp);
+
+	DeviceTemp->CreateDepthStencilView(Texture2DTemp, &descDSV, &DepthStencilTemp);
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	////// For Scene 3 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr,
+		NULL, D3D11_SDK_VERSION, &swapdesc, &Swap3, &Device3, &m_FeatureLevel, &DeviceContext3);
+
+	// TODO: PART 1 STEP 4
+	Swap3->GetBuffer(NULL, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&BackBuffer3));
+	Device3->CreateRenderTargetView(BackBuffer3, NULL, &Render3);
+
+	Device3->CreateTexture2D(&texturedesc, NULL, &Texture2D3);
+
+	Device3->CreateDepthStencilView(Texture2D3, &descDSV, &DepthStencil3);
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	// Creating the sample state
+	D3D11_SAMPLER_DESC sampDesc;
+	ZeroMemory(&sampDesc, sizeof(sampDesc));
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	m_pDevice->CreateSamplerState(&sampDesc, &m_pSamplerState);
+	DeviceTemp->CreateSamplerState(&sampDesc, &SamplerStateTemp);
+	Device3->CreateSamplerState(&sampDesc, &SamplerState3);
+
+}
 
 //----------------------------------------------------------------------------------------------------------
 // Constant Frame Rendering
 //----------------------------------------------------------------------------------------------------------
 bool Run() {
+
+	GetCursorPos(&cursorPos);
+	float x = 0;
+	x = cursorPos.x;
+	float y = 0;
+	y = cursorPos.y;
 
 	// Time Per Frame
 	float t = 0.0f;
@@ -1127,13 +1252,30 @@ bool Run() {
 
 
 		// Update variables
-		UpdateConstant(SkyBoxMatrix, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer3, DeviceContext3);
+		UpdateConstant(SkyBoxMatrix3, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer3, DeviceContext3);
 		UpdateConstant(SatelliteMatrix, ViewMatrix, ProjectionMatrix, SatelliteConstantBuffer, DeviceContext3);
 		UpdateConstant(EarthMatrix, ViewMatrix, ProjectionMatrix, EarthConstantBuffer, DeviceContext3);
 		UpdateConstant(SunMatrix, ViewMatrix, ProjectionMatrix, SunConstantBuffer, DeviceContext3);
 		UpdateConstant(MoonMatrix, ViewMatrix, ProjectionMatrix, MoonConstantBuffer, DeviceContext3);
 		UpdateConstant(SpaceShipMatrix, ViewMatrix, ProjectionMatrix, SpaceShipConstantBuffer, DeviceContext3);
 		UpdateConstant(Planet2Matrix, ViewMatrix, ProjectionMatrix, Planet2ConstantBuffer, DeviceContext3);
+
+		Lighting constantLight[3];
+		// Spot Light
+		constantLight[0].Color = Lights[0].Color;
+		constantLight[0].Direction = Lights[0].Direction;
+		constantLight[0].Position = Lights[0].Position;
+		constantLight[0].Radius = Lights[0].Radius;
+		// Point Light
+		constantLight[1].Color = Lights[1].Color;
+		constantLight[1].Position = Lights[1].Position;
+		constantLight[1].Radius = Lights[1].Radius;
+		// Directional Light
+		constantLight[2].Color = Lights[2].Color;
+		constantLight[2].Direction = Lights[2].Direction;
+
+		// Updating the Light Buffer
+		DeviceContext3->UpdateSubresource(LightConstantBuffer3, NULL, NULL, &constantLight, NULL, NULL);
 
 		// Drawing Objects
 		DrawIndexedGeometry(DeviceContext3, SkyBoxTexture3, SkyBoxVertexBuffer3, SkyBoxIndexBuffer3, SkyBoxConstantBuffer3, Input3, SkyBoxVertexShader3, SkyBoxPixelShader3, 36);
@@ -1154,32 +1296,98 @@ bool Run() {
 		CameraMovement(ViewMatrix, ViewMatrixSub, ProjectionMatrix);
 
 		// Setting Target View
-		DeviceContext4->OMSetRenderTargets(1, &Render4, DepthStencil4);
+		DeviceContext3->OMSetRenderTargets(1, &Render3, DepthStencil3);
 
 		// Setting Viewport
-		DeviceContext4->RSSetViewports(1, &m_ViewPort[0]);
+		DeviceContext3->RSSetViewports(1, &m_ViewPort[0]);
 
 		// Clearing Back Buffer
-		DeviceContext4->ClearRenderTargetView(Render4, Colors::Black);
+		DeviceContext3->ClearRenderTargetView(Render3, Colors::Black);
 
 		// Setting Sampler State
-		DeviceContext4->PSSetSamplers(NULL, 1, &SamplerState4);
+		DeviceContext3->PSSetSamplers(NULL, 1, &SamplerState3);
 
 		// Setting Light Buffer
-		DeviceContext4->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer4);
+		DeviceContext3->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer3);
 
 		// Clearing Depth Buffer
-		DeviceContext4->ClearDepthStencilView(DepthStencil4, D3D11_CLEAR_DEPTH, 1.0f, NULL);
+		DeviceContext3->ClearDepthStencilView(DepthStencil3, D3D11_CLEAR_DEPTH, 1.0f, NULL);
 
 		// Update variables
-		UpdateConstant(SkyBoxMatrix4, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer4, DeviceContext4);
+		UpdateConstant(SkyBoxMatrix3, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer4, DeviceContext3);
+		UpdateConstant(SeaFloorMatrix, ViewMatrix, ProjectionMatrix, SeaFloorConstantBuffer, DeviceContext3);
+		UpdateConstant(Ship1Matrix, ViewMatrix, ProjectionMatrix, Ship1ConstantBuffer, DeviceContext3);
+		UpdateConstant(Ship2Matrix, ViewMatrix, ProjectionMatrix, Ship2ConstantBuffer, DeviceContext3);
+		UpdateConstant(Ship3Matrix, ViewMatrix, ProjectionMatrix, Ship3ConstantBuffer, DeviceContext3);
+		UpdateConstant(Ship4Matrix, ViewMatrix, ProjectionMatrix, Ship4ConstantBuffer, DeviceContext3);
+
+		// Lighting
+		Lighting constantLight[3];
+		// Spot Light
+		constantLight[0].Color = Lights[0].Color;
+		constantLight[0].Direction = Lights[0].Direction;
+		constantLight[0].Position = Lights[0].Position;
+		constantLight[0].Radius = Lights[0].Radius;
+		// Point Light
+		constantLight[1].Color = Lights[1].Color;
+		constantLight[1].Position = Lights[1].Position;
+		constantLight[1].Radius = Lights[1].Radius;
+		// Directional Light
+		constantLight[2].Color = Lights[2].Color;
+		constantLight[2].Direction = Lights[2].Direction;
+
+		// Updating the Light Buffer
+		DeviceContext3->UpdateSubresource(LightConstantBuffer3, NULL, NULL, &constantLight, NULL, NULL);
+
 
 		// Drawing Objects
-		DrawIndexedGeometry(DeviceContext4, SkyBoxTexture4, SkyBoxVertexBuffer4, SkyBoxIndexBuffer4, SkyBoxConstantBuffer4, Input4, SkyBoxVertexShader4, SkyBoxPixelShader4, 36);
+		DrawIndexedGeometry(DeviceContext3, SkyBoxTexture4, SkyBoxVertexBuffer4, SkyBoxIndexBuffer4, SkyBoxConstantBuffer4, Input3, SkyBoxVertexShader3, SkyBoxPixelShader3, 36);
+		DrawIndexedGeometry(DeviceContext3, SeaFloorTexture, SeaFloorVertexBuffer, SeaFloorIndexBuffer, SeaFloorConstantBuffer, Input3, VertexShader3, PixelShader3, 6);
+		DrawModel(Ship1, DeviceContext3, Ship1VertexBuffer, Ship1IndexBuffer, Ship1ConstantBuffer, Ship1Texture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Ship2, DeviceContext3, Ship2VertexBuffer, Ship2IndexBuffer, Ship2ConstantBuffer, Ship2Texture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Ship3, DeviceContext3, Ship3VertexBuffer, Ship3IndexBuffer, Ship3ConstantBuffer, Ship3Texture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Ship4, DeviceContext3, Ship4VertexBuffer, Ship4IndexBuffer, Ship4ConstantBuffer, Ship4Texture, Input3, VertexShader3, PixelShader3);
+
 
 		/* Presenting our back buffer to our front buffer */
-		Swap4->Present(0, 0);
+		Swap3->Present(0, 0);
 		#pragma endregion
+	}
+	else if (SwapSceneInt == 4) {
+		#pragma region Scene5
+		// ViewMatrix/ViewPort Movement/Rotation, Zoom and Adjustable Near/Far-Plane
+		CameraMovement(ViewMatrix, ViewMatrixSub, ProjectionMatrix);
+
+		// Setting Target View
+		DeviceContext3->OMSetRenderTargets(1, &Render3, DepthStencil3);
+
+		// Setting Viewport
+		DeviceContext3->RSSetViewports(1, &m_ViewPort[0]);
+
+		// Clearing Back Buffer
+		DeviceContext3->ClearRenderTargetView(Render3, Colors::Black);
+
+		// Setting Sampler State
+		DeviceContext3->PSSetSamplers(NULL, 1, &SamplerState3);
+
+		// Setting Light Buffer
+		DeviceContext3->PSSetConstantBuffers(NULL, 1, &LightConstantBuffer3);
+
+		// Clearing Depth Buffer
+		DeviceContext3->ClearDepthStencilView(DepthStencil3, D3D11_CLEAR_DEPTH, 1.0f, NULL);
+
+		// Update variables
+		UpdateConstant(SkyBoxMatrix3, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer5, DeviceContext3);
+
+
+		// Drawing Objects
+		DrawIndexedGeometry(DeviceContext3, SkyBoxTexture5, SkyBoxVertexBuffer5, SkyBoxIndexBuffer5, SkyBoxConstantBuffer5, Input3, SkyBoxVertexShader3, SkyBoxPixelShader3, 36);
+
+
+		/* Presenting our back buffer to our front buffer */
+		Swap3->Present(0, 0);
+		#pragma endregion
+
 	}
 	return true;
 }
@@ -1299,14 +1507,17 @@ void Shutdown() {
 	if (SatelliteIndexBuffer) { SatelliteIndexBuffer->Release(); }
 	if (SatelliteConstantBuffer) { SatelliteConstantBuffer->Release(); }
 	if (SatelliteTexture) { SatelliteTexture->Release(); }
+	
 	if (EarthVertexBuffer) { EarthVertexBuffer->Release(); }
 	if (EarthIndexBuffer) { EarthIndexBuffer->Release(); }
 	if (EarthConstantBuffer) { EarthConstantBuffer->Release(); }
 	if (EarthTexture) { EarthTexture->Release(); }
+	
 	if (SunVertexBuffer) { SunVertexBuffer->Release(); }
 	if (SunIndexBuffer) { SunIndexBuffer->Release(); }
 	if (SunConstantBuffer) { SunConstantBuffer->Release(); }
 	if (SunTexture) { SunTexture->Release(); }
+	
 	if (MoonVertexBuffer) { MoonVertexBuffer->Release(); }
 	if (MoonIndexBuffer) { MoonIndexBuffer->Release(); }
 	if (MoonConstantBuffer) { MoonConstantBuffer->Release(); }
@@ -1321,27 +1532,21 @@ void Shutdown() {
 	if (Planet2IndexBuffer) { Planet2IndexBuffer->Release(); }
 	if (Planet2ConstantBuffer) { Planet2ConstantBuffer->Release(); }
 	if (Planet2Texture) { Planet2Texture->Release(); }
-	// Scene 4
-	if (Render4) { Render4->Release(); }
-	if (Swap4) { Swap4->Release(); }
-	if (Device4) { Device4->Release(); }
-	if (DeviceContext4) { DeviceContext4->Release(); }
-	if (BackBuffer4) { BackBuffer4->Release(); }
-	if (Input4) { Input4->Release(); }
-	if (DepthStencil4) { DepthStencil4->Release(); }
-	if (SamplerState4) { SamplerState4->Release(); }
-	if (Texture2D4) { Texture2D4->Release(); }
-	if (VertexShader4) { VertexShader4->Release(); }
-	if (PixelShader4) { PixelShader4->Release(); }
 
-	if (SkyBoxVertexShader4) { SkyBoxVertexShader4->Release(); }
-	if (SkyBoxPixelShader4) { SkyBoxPixelShader4->Release(); }
+
+	// Scene 4
+	if (LightConstantBuffer4) { LightConstantBuffer4->Release(); }
+
 	if (SkyBoxVertexBuffer4) { SkyBoxVertexBuffer4->Release(); }
 	if (SkyBoxIndexBuffer4) { SkyBoxIndexBuffer4->Release(); }
 	if (SkyBoxConstantBuffer4) { SkyBoxConstantBuffer4->Release(); }
 	if (SkyBoxTexture4) { SkyBoxTexture4->Release(); }
 
-	if (LightConstantBuffer4) { LightConstantBuffer4->Release(); }
+	if (SeaFloorVertexBuffer) { SeaFloorVertexBuffer->Release(); }
+	if (SeaFloorIndexBuffer) { SeaFloorIndexBuffer->Release(); }
+	if (SeaFloorConstantBuffer) { SeaFloorConstantBuffer->Release(); }
+	if (SeaFloorTexture) { SeaFloorTexture->Release(); }
+
 
 	if (CameraResource) { CameraResource->Release(); }
 }
@@ -1903,6 +2108,50 @@ void SetWall() {
 	#pragma endregion
 }
 
+void SetSeaFloor()
+{
+	// Creating Sea Floor Vertex
+	SIMPLE_VERTEX Vertex[] = {
+		{ XMFLOAT4(-250.0f, -0.55f, -250.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 1.0f, 25.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(250.0f, -0.55f, -250.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 1.0f, 25.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(250.0f, -0.55f,  250.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(1.0f, 0.0f, 25.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-250.0f, -0.55f,  250.0f, 1.0f),	XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),	XMFLOAT3(0.0f, 0.0f, 25.0f),	XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+	};
+
+	// Initializing Vertex Buffer
+	D3D11_BUFFER_DESC		buffdesc;
+	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 4;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA data;
+	ZeroMemory(&data, sizeof(data));
+	data.pSysMem = Vertex;
+
+	// Creating Vertex Buffer
+	Device3->CreateBuffer(&buffdesc, &data, &SeaFloorVertexBuffer);
+
+	// Creating Sea Floor Index
+	DWORD32 Indexes[] = {
+		3,1,0,
+		2,1,3,
+	};
+
+	// Initializing/Creating Index Buffer
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(DWORD32) * 6;
+	data.pSysMem = Indexes;
+	Device3->CreateBuffer(&buffdesc, &data, &SeaFloorIndexBuffer);
+
+	// Initializing/Creating Constant Buffer
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(ConstantMatrix);
+	Device3->CreateBuffer(&buffdesc, nullptr, &SeaFloorConstantBuffer);
+}
+
+
 //----------------------------------------------------------------------------------------------------------
 // Functions: Rendering Frame by frame
 //----------------------------------------------------------------------------------------------------------
@@ -2033,32 +2282,36 @@ void UpdateConstant(XMMATRIX &geometryMatrix, XMMATRIX &viewMatrix, XMMATRIX &pr
 // Functions: Key Presses
 //----------------------------------------------------------------------------------------------------------
 void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &viewMatrixSub, XMMATRIX &projectionMatrix) {
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	UINT width = rc.right;
+	UINT height = rc.bottom;
 
 	// Reset Camera
 	if (GetAsyncKeyState('R')) { viewMatrix = viewMatrixSub; }
 
 	// ViewPort/Camera Fly Forward
-	if (GetAsyncKeyState('Q')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0, -0.01f)); }
+	if (GetAsyncKeyState('Q')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0, -0.05f)); }
 	// ViewPort/Camera Fly Backward
-	if (GetAsyncKeyState('E')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0, 0.01f)); }
+	if (GetAsyncKeyState('E')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0, 0.05f)); }
 
 	// ViewPort/Camera movement Up
-	if (GetAsyncKeyState('W')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, -0.01f, 0)); }
+	if (GetAsyncKeyState('W')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, -0.05f, 0)); }
 	// ViewPort/Camera movement Down
-	if (GetAsyncKeyState('S')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0.01f, 0)); }
+	if (GetAsyncKeyState('S')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0, 0.05f, 0)); }
 	// ViewPort/Camera movement Right
-	if (GetAsyncKeyState('D')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(-0.01f, 0, 0)); }
+	if (GetAsyncKeyState('D')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(-0.05f, 0, 0)); }
 	// ViewPort/Camera movement Left
-	if (GetAsyncKeyState('A')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0.01f, 0, 0)); }
+	if (GetAsyncKeyState('A')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixTranslation(0.05f, 0, 0)); }
 
 	// ViewPort/Camera rotate Up
-	if (GetAsyncKeyState('I')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationX(0.001)); }
+	if (GetAsyncKeyState('I')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationX(0.0035)); }
 	// ViewPort/Camera rotate Down
-	if (GetAsyncKeyState('K')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationX(-0.001)); }
+	if (GetAsyncKeyState('K')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationX(-0.0035)); }
 	// ViewPort/Camera rotate Left
-	if (GetAsyncKeyState('J')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationY(0.001)); }
+	if (GetAsyncKeyState('J')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationY(0.0035)); }
 	// ViewPort/Camera rotate Right
-	if (GetAsyncKeyState('L')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationY(-0.001)); }
+	if (GetAsyncKeyState('L')) { viewMatrix = XMMatrixMultiply(viewMatrix, XMMatrixRotationY(-0.0035)); }
 
 	// Adjust Near Plane
 	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1) { NearPlane += 0.1f; }
@@ -2074,7 +2327,7 @@ void CameraMovement(XMMATRIX &viewMatrix, XMMATRIX &viewMatrixSub, XMMATRIX &pro
 	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1) { if (Zoom > 2.1) { Zoom -= 0.05; } }
 
 	// Initializing the projection matrix
-	projectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, BACKBUFFER_WIDTH / static_cast<float>(BACKBUFFER_HEIGHT), NearPlane, FarPlane);
+	projectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 }
 
 void LightMovment() {
@@ -2154,17 +2407,16 @@ void SceneManagment() {
 	GetClientRect(hWnd, &rc);
 	UINT width = rc.right;
 	UINT height = rc.bottom;
-	CameraProjection = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
-	ProjectionMatrixTemp = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
-	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
-	ProjectionMatrix3 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
-	ProjectionMatrix4 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
 
 	if (GetAsyncKeyState('Z') & 0x1) {
 		SwapSceneInt++;
+		// Split-4 Screen
 		if (SwapSceneInt == 1) {
+			#pragma region 1
+			// Resetting Camera
 			SwapCameraInt = 0;
+
+			// Setting View Matrixes Used
 			ViewMatrix = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, -25.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
 			ViewMatrixSub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, -25.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
 			ViewMatrix2 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(0.0f, 1.5f, 25.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
@@ -2174,7 +2426,7 @@ void SceneManagment() {
 			ViewMatrix4 = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(25.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
 			ViewMatrix4Sub = XMMatrixMultiply(XMMatrixLookAtLH(XMVectorSet(25.0f, 1.5f, 0.0f, 0.0f), Focus, Up), XMMatrixTranslation(0, 0, 0));
 
-			// Initializing the Viewport
+			// Initializing the Top Left Viewport
 			m_ViewPort[0].Width = static_cast<float>(width * 0.5);
 			m_ViewPort[0].Height = static_cast<float>(height * 0.5);
 			m_ViewPort[0].MinDepth = 0.0f;
@@ -2182,6 +2434,7 @@ void SceneManagment() {
 			m_ViewPort[0].TopLeftX = 0;
 			m_ViewPort[0].TopLeftY = 0;
 
+			// Initializing the Top Right Viewport
 			m_ViewPort[1].Width = static_cast<float>(width * 0.5f);
 			m_ViewPort[1].Height = static_cast<float>(height * 0.5f);
 			m_ViewPort[1].MinDepth = 0.0f;
@@ -2189,6 +2442,7 @@ void SceneManagment() {
 			m_ViewPort[1].TopLeftX = static_cast<float>(width * 0.5f);
 			m_ViewPort[1].TopLeftY = 0;
 
+			// Initializing the Bottom Left Viewport
 			m_ViewPort[2].Width = static_cast<float>(width * 0.5f);
 			m_ViewPort[2].Height = static_cast<float>(height * 0.5f);
 			m_ViewPort[2].MinDepth = 0.0f;
@@ -2196,16 +2450,22 @@ void SceneManagment() {
 			m_ViewPort[2].TopLeftX = 0;
 			m_ViewPort[2].TopLeftY = static_cast<float>(height * 0.5f);
 
+			// Initializing the Bottom Right Viewport
 			m_ViewPort[3].Width = static_cast<float>(width * 0.5f);
 			m_ViewPort[3].Height = static_cast<float>(height * 0.5f);
 			m_ViewPort[3].MinDepth = 0.0f;
 			m_ViewPort[3].MaxDepth = 1.0f;
 			m_ViewPort[3].TopLeftX = static_cast<float>(width * 0.5f);
 			m_ViewPort[3].TopLeftY = static_cast<float>(height * 0.5f);
-
+			#pragma endregion
 		}
+		// Space Theme
 		if (SwapSceneInt == 2) {
+			#pragma region 2
+			// Resetting Camera
 			SwapCameraInt = 0;
+
+			// Setting View Matrixes
 			ViewMatrix = XMMatrixLookAtLH(XMVectorSet(0.0f, 25.0f, -100.0f, 0.0f), Focus, Up);
 			ViewMatrixSub = XMMatrixLookAtLH(XMVectorSet(0.0f, 25.0f, -100.0f, 0.0f), Focus, Up);
 
@@ -2216,11 +2476,27 @@ void SceneManagment() {
 			m_ViewPort[0].MaxDepth = 1.0f;
 			m_ViewPort[0].TopLeftX = 0;
 			m_ViewPort[0].TopLeftY = 0;
+
+			// Setting Point Light
+			Lights[1].Position = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+			Lights[1].Color = XMFLOAT4(255.0f, 255.0f, 255.0f, 1.0f);
+			Lights[1].Radius = XMFLOAT4(500.0f, 500.0f, 500.0f, 1.0f);
+
+			// Setting Directional Lighting
+			Lights[2].Direction = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+			Lights[2].Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+			Resize();
+			#pragma endregion
 		}
+		// Pirate Theme
 		if (SwapSceneInt == 3) {
+			#pragma region 3
+			// Resetting Camera
 			SwapCameraInt = 0;
-			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
-			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
+
+			// Setting View Matrixies
+			ViewMatrix = XMMatrixLookAtLH(XMVectorSet(-5.0f, 25.0f, -50.0f, 0.0f), Focus, Up);
+			ViewMatrixSub = XMMatrixLookAtLH(XMVectorSet(-5.0f, 25.0f, -50.0f, 0.0f), Focus, Up);
 
 			// Initializing the Viewport
 			m_ViewPort[0].Width = static_cast<float>(width);
@@ -2229,8 +2505,31 @@ void SceneManagment() {
 			m_ViewPort[0].MaxDepth = 1.0f;
 			m_ViewPort[0].TopLeftX = 0;
 			m_ViewPort[0].TopLeftY = 0;
+			Resize();
+
+			// Resetting Spot Light
+			Lights[0].Direction = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
+			Lights[0].Color = XMFLOAT4(0.0f, 255.0f, 0.0f, 1.0f);
+			Lights[0].Position = XMFLOAT4(0.0f, 7.0f, 0.0f, 0.0f);
+			Lights[0].Radius = XMFLOAT4(0.923f, 0.707f, 10.0f, 0.0f);
+
+			// Resetting Point Light
+			Lights[1].Position = XMFLOAT4(6.0f, 1.0f, 0.0f, 0.0f);
+			Lights[1].Color = XMFLOAT4(255.0f, 0.0f, 255.0f, 1.0f);
+			Lights[1].Radius = XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
+
+			// Resetting Directional Lighting
+			Lights[2].Direction = XMFLOAT4(1.0f, -1.0f, -1.0f, 0.0f);
+			Lights[2].Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+			#pragma endregion
 		}
+		// City Theme
 		if (SwapSceneInt == 4) {
+			#pragma region 4
+			// Resetting Scene Managment 
+			SwapCameraInt = 0;
+
+			// Setting View Matrixies
 			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
 
@@ -2242,10 +2541,86 @@ void SceneManagment() {
 			m_ViewPort[0].TopLeftX = 0;
 			m_ViewPort[0].TopLeftY = 0;
 
+			
+			// Resetting Spot Light
+			Lights[0].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+			Lights[0].Color = XMFLOAT4(0.0f, 255.0f, 0.0f, 1.0f);
+			Lights[0].Position = XMFLOAT4(0.0f, 7.0f, 0.0f, 0.0f);
+			Lights[0].Radius = XMFLOAT4(0.923f, 0.707f, 10.0f, 0.0f);
+
+			// Resetting Point Light
+			Lights[1].Position = XMFLOAT4(6.0f, 1.0f, 0.0f, 0.0f);
+			Lights[1].Color = XMFLOAT4(255.0f, 0.0f, 255.0f, 1.0f);
+			Lights[1].Radius = XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
+
+			// Resetting Directional Lighting
+			Lights[2].Direction = XMFLOAT4(1.0f, -1.0f, -1.0f, 0.0f);
+			Lights[2].Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+			Resize();
+			#pragma endregion
+		}
+		// Back To First Scene
+		if (SwapSceneInt == 5) {
+			#pragma region 5
+			// Setting View Matrixies
+			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
+			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
+
+			// Initializing the Viewport
+			m_ViewPort[0].Width = static_cast<float>(width);
+			m_ViewPort[0].Height = static_cast<float>(height);
+			m_ViewPort[0].MinDepth = 0.0f;
+			m_ViewPort[0].MaxDepth = 1.0f;
+			m_ViewPort[0].TopLeftX = 0;
+			m_ViewPort[0].TopLeftY = 0;
+
+			
+			// Resetting Spot Light
+			Lights[0].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+			Lights[0].Color = XMFLOAT4(0.0f, 255.0f, 0.0f, 1.0f);
+			Lights[0].Position = XMFLOAT4(0.0f, 7.0f, 0.0f, 0.0f);
+			Lights[0].Radius = XMFLOAT4(0.923f, 0.707f, 10.0f, 0.0f);
+
+			// Resetting Point Light
+			Lights[1].Position = XMFLOAT4(6.0f, 1.0f, 0.0f, 0.0f);
+			Lights[1].Color = XMFLOAT4(255.0f, 0.0f, 255.0f, 1.0f);
+			Lights[1].Radius = XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
+
+			// Resetting Directional Lighting
+			Lights[2].Direction = XMFLOAT4(1.0f, -1.0f, -1.0f, 0.0f);
+			Lights[2].Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+			// Resetting Camera
 			SwapSceneInt = 0;
+
+			// Resetting Scene Managment 
 			SwapCameraInt = 0;
+
+			Resize();
+			#pragma endregion
 		}
 
 	}
 
 }
+
+void Resize() {
+
+	// Getting The Current Width and Height of the Window
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	UINT width = rc.right;
+	UINT height = rc.bottom;
+
+	// Tests with Render to Texture
+	ProjectionMatrixTemp = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+
+	// Initializing the projection matrix
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix3 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+	ProjectionMatrix4 = XMMatrixPerspectiveFovLH(XM_PI / Zoom, width / static_cast<float>(height), NearPlane, FarPlane);
+
+}
+
