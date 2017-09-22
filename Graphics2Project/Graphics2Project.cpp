@@ -219,10 +219,9 @@ ID3D11Buffer*					SeaFloorVertexBuffer	= nullptr;
 ID3D11Buffer*					SeaFloorIndexBuffer		= nullptr;
 ID3D11Buffer*					SeaFloorConstantBuffer	= nullptr;
 ID3D11ShaderResourceView*		SeaFloorTexture			= nullptr;
+ID3D11ShaderResourceView*		CityFloorTexture		= nullptr;
 
-
-//////////////////////////////////////////////////////Need To Release///////////////////////////////////////////////
-// Need for Loading Sun
+// Need for Loading Ship
 ObjLoader						Ship1;
 XMMATRIX						Ship1Matrix;
 ID3D11Buffer*					Ship1VertexBuffer		= nullptr;
@@ -230,7 +229,7 @@ ID3D11Buffer*					Ship1IndexBuffer		= nullptr;
 ID3D11Buffer*					Ship1ConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		Ship1Texture			= nullptr;
 
-// Need for Loading Sun
+// Need for Loading Pirate Look
 ObjLoader						Ship2;
 XMMATRIX						Ship2Matrix;
 ID3D11Buffer*					Ship2VertexBuffer		= nullptr;
@@ -238,7 +237,7 @@ ID3D11Buffer*					Ship2IndexBuffer		= nullptr;
 ID3D11Buffer*					Ship2ConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		Ship2Texture			= nullptr;
 
-// Need for Loading Sun
+// Need for Loading Pirate Atk
 ObjLoader						Ship3;
 XMMATRIX						Ship3Matrix;
 ID3D11Buffer*					Ship3VertexBuffer		= nullptr;
@@ -246,7 +245,7 @@ ID3D11Buffer*					Ship3IndexBuffer		= nullptr;
 ID3D11Buffer*					Ship3ConstantBuffer		= nullptr;
 ID3D11ShaderResourceView*		Ship3Texture			= nullptr;
 
-// Need for Loading Sun
+// Need for Loading Pirate Run
 ObjLoader						Ship4;
 XMMATRIX						Ship4Matrix;
 ID3D11Buffer*					Ship4VertexBuffer		= nullptr;
@@ -264,10 +263,67 @@ ID3D11Buffer*					SkyBoxIndexBuffer5		= nullptr;
 ID3D11Buffer*					SkyBoxConstantBuffer5	= nullptr;
 ID3D11ShaderResourceView*		SkyBoxTexture5			= nullptr;
 
+// Need for Loading Car
+ObjLoader						Car;
+XMMATRIX						CarMatrix;
+ID3D11Buffer*					CarVertexBuffer			= nullptr;
+ID3D11Buffer*					CarIndexBuffer			= nullptr;
+ID3D11Buffer*					CarConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		CarTexture				= nullptr;
 
+// Need for Loading LightPoll
+ObjLoader						LightPoll;
+XMMATRIX						LightPollMatrix;
+ID3D11Buffer*					LightPollVertexBuffer	= nullptr;
+ID3D11Buffer*					LightPollIndexBuffer	= nullptr;
+ID3D11Buffer*					LightPollConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		LightPollTexture		= nullptr;
+
+// Need for Loading Helicopter
+ObjLoader						Heli;
+XMMATRIX						HeliMatrix;
+ID3D11Buffer*					HeliVertexBuffer		= nullptr;
+ID3D11Buffer*					HeliIndexBuffer			= nullptr;
+ID3D11Buffer*					HeliConstantBuffer		= nullptr;
+ID3D11ShaderResourceView*		HeliTexture				= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Building1;
+XMMATRIX						Building1Matrix;
+ID3D11Buffer*					Building1VertexBuffer	= nullptr;
+ID3D11Buffer*					Building1IndexBuffer	= nullptr;
+ID3D11Buffer*					Building1ConstantBuffer	= nullptr;
+ID3D11ShaderResourceView*		BuildingTexture			= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Building2;
+XMMATRIX						Building2Matrix;
+ID3D11Buffer*					Building2VertexBuffer	= nullptr;
+ID3D11Buffer*					Building2IndexBuffer	= nullptr;
+ID3D11Buffer*					Building2ConstantBuffer	= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Building3;
+XMMATRIX						Building3Matrix;
+ID3D11Buffer*					Building3VertexBuffer	= nullptr;
+ID3D11Buffer*					Building3IndexBuffer	= nullptr;
+ID3D11Buffer*					Building3ConstantBuffer	= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Building4;
+XMMATRIX						Building4Matrix;
+ID3D11Buffer*					Building4VertexBuffer	= nullptr;
+ID3D11Buffer*					Building4IndexBuffer	= nullptr;
+ID3D11Buffer*					Building4ConstantBuffer	= nullptr;
+
+// Need for Loading Sun
+ObjLoader						Building5;
+XMMATRIX						Building5Matrix;
+ID3D11Buffer*					Building5VertexBuffer	= nullptr;
+ID3D11Buffer*					Building5IndexBuffer	= nullptr;
+ID3D11Buffer*					Building5ConstantBuffer	= nullptr;
 
 //----------------------------------------------------------------------------------------
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Instancing
 ID3D11Buffer*					InstanceBuffer			= nullptr;
@@ -709,7 +765,25 @@ HRESULT Initialize() {
 	CreateDDSTextureFromFile(Device3, L"files/Line.dds", NULL, &Ship4Texture);
 
 	// Setting Indexed Geometry for Scene 5
-	SetSkyBox(Device3, L"files/SunsetSkybox.dds", SkyBoxTexture5, SkyBoxVertexBuffer5, SkyBoxIndexBuffer5, SkyBoxConstantBuffer5);
+	SetSkyBox(Device3, L"files/City/City.dds", SkyBoxTexture5, SkyBoxVertexBuffer5, SkyBoxIndexBuffer5, SkyBoxConstantBuffer5);
+	CreateDDSTextureFromFile(Device3, L"files/City/CityFloor.dds", NULL, &CityFloorTexture);
+
+	SetModel("Files/City/Car.obj", Car, CarVertexBuffer, CarIndexBuffer, CarConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/City/Car.dds", NULL, &CarTexture);
+
+	SetModel("Files/City/LightPoll.obj", LightPoll, LightPollVertexBuffer, LightPollIndexBuffer, LightPollConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/City/LightPoll.dds", NULL, &LightPollTexture);
+
+	SetModel("Files/City/Helicopter.obj", Heli, HeliVertexBuffer, HeliIndexBuffer, HeliConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/City/Helicopter.dds", NULL, &HeliTexture);
+
+	SetModel("Files/City/Building.obj", Building1, Building1VertexBuffer, Building1IndexBuffer, Building1ConstantBuffer, Device3);
+	SetModel("Files/City/Building1.obj", Building2, Building2VertexBuffer, Building2IndexBuffer, Building2ConstantBuffer, Device3);
+	SetModel("Files/City/Building2.obj", Building3, Building3VertexBuffer, Building3IndexBuffer, Building3ConstantBuffer, Device3);
+	SetModel("Files/City/Building3.obj", Building4, Building4VertexBuffer, Building4IndexBuffer, Building4ConstantBuffer, Device3);
+	SetModel("Files/City/Building4.obj", Building5, Building5VertexBuffer, Building5IndexBuffer, Building5ConstantBuffer, Device3);
+	CreateDDSTextureFromFile(Device3, L"files/City/Building.dds", NULL, &BuildingTexture);
+
 
 
 	/* Setting Lighting */
@@ -778,7 +852,7 @@ HRESULT Initialize() {
 
 	// Initializing the world matrix
 	WorldMatrix		= XMMatrixIdentity();
-
+	// Scene 1
 	CubeMatrix		= XMMatrixIdentity();
 	
 	FloorMatrix		= XMMatrixIdentity();
@@ -786,9 +860,15 @@ HRESULT Initialize() {
 
 	PryamidMatrix	= XMMatrixIdentity();
 	PryamidMatrix	= XMMatrixTranslation(5, -0.5f, 15.0f);
-	
-	WallMatrix = XMMatrixIdentity();
 
+	GeometryMatrix	= XMMatrixIdentity();
+	SkyBoxMatrix	= XMMatrixIdentity();
+
+	// Scene 2
+	SkyBoxMatrix2	= XMMatrixIdentity();
+	WallMatrix		= XMMatrixIdentity();
+
+	// Scene 3
 	EarthMatrix		= XMMatrixIdentity();
 	EarthMatrix		= XMMatrixScaling(0.01f,0.01f,0.01f);
 
@@ -800,25 +880,41 @@ HRESULT Initialize() {
 	SunMatrix		= XMMatrixIdentity();
 	SunMatrix		= XMMatrixScaling(3.0f,3.0f,3.0f);
 
-	GeometryMatrix = XMMatrixIdentity();
+	SkyBoxMatrix3	= XMMatrixIdentity();
 
-	SkyBoxMatrix = XMMatrixIdentity();
-	SkyBoxMatrix2 = XMMatrixIdentity();
-	SkyBoxMatrix3 = XMMatrixIdentity();
+	// Scene 4
+	SeaFloorMatrix	= XMMatrixIdentity();
+	SeaFloorMatrix	= XMMatrixTranslation(0.0f, -0.5f, 0.0f);
+	Ship1Matrix		= XMMatrixIdentity();
 
-	SeaFloorMatrix = XMMatrixIdentity();
-	SeaFloorMatrix = XMMatrixTranslation(0, -0.5f, 0);
-	Ship1Matrix = XMMatrixIdentity();
+	Ship2Matrix		= XMMatrixIdentity();
+	Ship2Matrix		= XMMatrixTranslation(25.0f, 10.3f, 40.0f) * XMMatrixRotationY(XM_PI / 3);
 
-	Ship2Matrix = XMMatrixIdentity();
-	Ship2Matrix = XMMatrixTranslation(25, 10.3f, 40) * XMMatrixRotationY(XM_PI / 3);
+	Ship3Matrix		= XMMatrixIdentity();
+	Ship3Matrix		= XMMatrixTranslation(0.0f, 1.82f, 0.0f) * XMMatrixRotationY(XM_PI);
 
-	Ship3Matrix = XMMatrixIdentity();
-	Ship3Matrix = XMMatrixTranslation(0, 1.82f, 0) * XMMatrixRotationY(XM_PI);
+	Ship4Matrix		= XMMatrixIdentity();
+	Ship4Matrix		= XMMatrixTranslation(0.0f, 1.82f, 5.0f) * XMMatrixRotationY(XM_PI);
 
-	Ship4Matrix = XMMatrixIdentity();
-	Ship4Matrix = XMMatrixTranslation(0, 1.82f, 5) * XMMatrixRotationY(XM_PI);
+	// Scene 5
+	CarMatrix		= XMMatrixIdentity();
+	CarMatrix		= XMMatrixTranslation(-10.0f, -1.0f, 25.0f) * XMMatrixRotationY(XM_PI / 2);
 
+	LightPollMatrix = XMMatrixIdentity();
+	LightPollMatrix = XMMatrixTranslation(10.0f, -1.0f, -13.0f) * XMMatrixRotationY(XM_PI / -3);
+
+	HeliMatrix		= XMMatrixIdentity();
+
+	Building1Matrix = XMMatrixIdentity();
+	Building1Matrix = XMMatrixTranslation(5.0f, -1.0f, 100.0f) * XMMatrixRotationY(XM_PI / 2);
+	Building2Matrix = XMMatrixIdentity();
+	Building2Matrix = XMMatrixTranslation(5.0f, -1.0f, 57.0f) * XMMatrixRotationY(XM_PI / 2);
+	Building3Matrix = XMMatrixIdentity();
+	Building3Matrix = XMMatrixTranslation(5.0f, -1.0f, 28.3f) * XMMatrixRotationY(XM_PI / 2);
+	Building4Matrix = XMMatrixIdentity();
+	Building4Matrix = XMMatrixTranslation(5.0f, -1.0f, -20.0f) * XMMatrixRotationY(XM_PI / 2);
+	Building5Matrix = XMMatrixIdentity();
+	Building5Matrix = XMMatrixTranslation(5.0f, -1.0f, -32.0f) * XMMatrixRotationY(XM_PI / 2);
 
 
 	CameraView = XMMatrixLookAtLH(Eye, Focus, Up);
@@ -1376,12 +1472,58 @@ bool Run() {
 		// Clearing Depth Buffer
 		DeviceContext3->ClearDepthStencilView(DepthStencil3, D3D11_CLEAR_DEPTH, 1.0f, NULL);
 
+		// Updating Helicopter Rotation
+		HeliMatrix = XMMatrixTranslation(0.0f, 40.0f, 0.0f);
+		HeliMatrix = HeliMatrix * XMMatrixRotationY(t);
+
+
+
 		// Update variables
 		UpdateConstant(SkyBoxMatrix3, ViewMatrix, ProjectionMatrix, SkyBoxConstantBuffer5, DeviceContext3);
+		UpdateConstant(SeaFloorMatrix, ViewMatrix, ProjectionMatrix, SeaFloorConstantBuffer, DeviceContext3);
+
+		UpdateConstant(CarMatrix, ViewMatrix, ProjectionMatrix, CarConstantBuffer, DeviceContext3);
+		UpdateConstant(LightPollMatrix, ViewMatrix, ProjectionMatrix, LightPollConstantBuffer, DeviceContext3);
+		UpdateConstant(HeliMatrix, ViewMatrix, ProjectionMatrix, HeliConstantBuffer, DeviceContext3);
+		UpdateConstant(Building1Matrix, ViewMatrix, ProjectionMatrix, Building1ConstantBuffer, DeviceContext3);
+		UpdateConstant(Building2Matrix, ViewMatrix, ProjectionMatrix, Building2ConstantBuffer, DeviceContext3);
+		UpdateConstant(Building3Matrix, ViewMatrix, ProjectionMatrix, Building3ConstantBuffer, DeviceContext3);
+		UpdateConstant(Building4Matrix, ViewMatrix, ProjectionMatrix, Building4ConstantBuffer, DeviceContext3);
+		UpdateConstant(Building5Matrix, ViewMatrix, ProjectionMatrix, Building5ConstantBuffer, DeviceContext3);
+
+
+		// Lighting
+		Lighting constantLight[3];
+		// Spot Light
+		constantLight[0].Color = Lights[0].Color;
+		constantLight[0].Direction = Lights[0].Direction;
+		constantLight[0].Position = Lights[0].Position;
+		constantLight[0].Radius = Lights[0].Radius;
+		// Point Light
+		constantLight[1].Color = Lights[1].Color;
+		constantLight[1].Position = Lights[1].Position;
+		constantLight[1].Radius = Lights[1].Radius;
+		// Directional Light
+		constantLight[2].Color = Lights[2].Color;
+		constantLight[2].Direction = Lights[2].Direction;
+
+		// Updating the Light Buffer
+		DeviceContext3->UpdateSubresource(LightConstantBuffer3, NULL, NULL, &constantLight, NULL, NULL);
 
 
 		// Drawing Objects
 		DrawIndexedGeometry(DeviceContext3, SkyBoxTexture5, SkyBoxVertexBuffer5, SkyBoxIndexBuffer5, SkyBoxConstantBuffer5, Input3, SkyBoxVertexShader3, SkyBoxPixelShader3, 36);
+		DrawIndexedGeometry(DeviceContext3, CityFloorTexture, SeaFloorVertexBuffer, SeaFloorIndexBuffer, SeaFloorConstantBuffer, Input3, VertexShader3, PixelShader3, 6);
+
+		DrawModel(Car, DeviceContext3, CarVertexBuffer, CarIndexBuffer, CarConstantBuffer, CarTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(LightPoll, DeviceContext3, LightPollVertexBuffer, LightPollIndexBuffer, LightPollConstantBuffer, LightPollTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Heli, DeviceContext3, HeliVertexBuffer, HeliIndexBuffer, HeliConstantBuffer, HeliTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Building1, DeviceContext3, Building1VertexBuffer, Building1IndexBuffer, Building1ConstantBuffer, BuildingTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Building2, DeviceContext3, Building2VertexBuffer, Building2IndexBuffer, Building2ConstantBuffer, BuildingTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Building3, DeviceContext3, Building3VertexBuffer, Building3IndexBuffer, Building3ConstantBuffer, BuildingTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Building4, DeviceContext3, Building4VertexBuffer, Building4IndexBuffer, Building4ConstantBuffer, BuildingTexture, Input3, VertexShader3, PixelShader3);
+		DrawModel(Building5, DeviceContext3, Building5VertexBuffer, Building5IndexBuffer, Building5ConstantBuffer, BuildingTexture, Input3, VertexShader3, PixelShader3);
+
 
 
 		/* Presenting our back buffer to our front buffer */
@@ -1546,6 +1688,70 @@ void Shutdown() {
 	if (SeaFloorIndexBuffer) { SeaFloorIndexBuffer->Release(); }
 	if (SeaFloorConstantBuffer) { SeaFloorConstantBuffer->Release(); }
 	if (SeaFloorTexture) { SeaFloorTexture->Release(); }
+
+	if (Ship1VertexBuffer) { Ship1VertexBuffer->Release(); }
+	if (Ship1IndexBuffer) { Ship1IndexBuffer->Release(); }
+	if (Ship1ConstantBuffer) { Ship1ConstantBuffer->Release(); }
+	if (Ship1Texture) { Ship1Texture->Release(); }
+	
+	if (Ship2VertexBuffer) { Ship2VertexBuffer->Release(); }
+	if (Ship2IndexBuffer) { Ship2IndexBuffer->Release(); }
+	if (Ship2ConstantBuffer) { Ship2ConstantBuffer->Release(); }
+	if (Ship2Texture) { Ship2Texture->Release(); }
+	
+	if (Ship3VertexBuffer) { Ship3VertexBuffer->Release(); }
+	if (Ship3IndexBuffer) { Ship3IndexBuffer->Release(); }
+	if (Ship3ConstantBuffer) { Ship3ConstantBuffer->Release(); }
+	if (Ship3Texture) { Ship3Texture->Release(); }
+	
+	if (Ship4VertexBuffer) { Ship4VertexBuffer->Release(); }
+	if (Ship4IndexBuffer) { Ship4IndexBuffer->Release(); }
+	if (Ship4ConstantBuffer) { Ship4ConstantBuffer->Release(); }
+	if (Ship4Texture) { Ship4Texture->Release(); }
+
+	// Scene 5
+	if (SkyBoxVertexBuffer5) { SkyBoxVertexBuffer5->Release(); }
+	if (SkyBoxIndexBuffer5) { SkyBoxIndexBuffer5->Release(); }
+	if (SkyBoxConstantBuffer5) { SkyBoxConstantBuffer5->Release(); }
+	if (SkyBoxTexture5) { SkyBoxTexture5->Release(); }
+
+	if (CityFloorTexture) { CityFloorTexture->Release(); }
+
+	if (CarVertexBuffer) { CarVertexBuffer->Release(); }
+	if (CarIndexBuffer) { CarIndexBuffer->Release(); }
+	if (CarConstantBuffer) { CarConstantBuffer->Release(); }
+	if (CarTexture) { CarTexture->Release(); }
+	
+	if (LightPollVertexBuffer) { LightPollVertexBuffer->Release(); }
+	if (LightPollIndexBuffer) { LightPollIndexBuffer->Release(); }
+	if (LightPollConstantBuffer) { LightPollConstantBuffer->Release(); }
+	if (LightPollTexture) { LightPollTexture->Release(); }
+	
+	if (HeliVertexBuffer) { HeliVertexBuffer->Release(); }
+	if (HeliIndexBuffer) { HeliIndexBuffer->Release(); }
+	if (HeliConstantBuffer) { HeliConstantBuffer->Release(); }
+	if (HeliTexture) { HeliTexture->Release(); }
+	
+	if (Building1VertexBuffer) { Building1VertexBuffer->Release(); }
+	if (Building1IndexBuffer) { Building1IndexBuffer->Release(); }
+	if (Building1ConstantBuffer) { Building1ConstantBuffer->Release(); }
+	if (BuildingTexture) { BuildingTexture->Release(); }
+	
+	if (Building2VertexBuffer) { Building2VertexBuffer->Release(); }
+	if (Building2IndexBuffer) { Building2IndexBuffer->Release(); }
+	if (Building2ConstantBuffer) { Building2ConstantBuffer->Release(); }
+	
+	if (Building3VertexBuffer) { Building3VertexBuffer->Release(); }
+	if (Building3IndexBuffer) { Building3IndexBuffer->Release(); }
+	if (Building3ConstantBuffer) { Building3ConstantBuffer->Release(); }
+	
+	if (Building4VertexBuffer) { Building4VertexBuffer->Release(); }
+	if (Building4IndexBuffer) { Building4IndexBuffer->Release(); }
+	if (Building4ConstantBuffer) { Building4ConstantBuffer->Release(); }
+	
+	if (Building5VertexBuffer) { Building5VertexBuffer->Release(); }
+	if (Building5IndexBuffer) { Building5IndexBuffer->Release(); }
+	if (Building5ConstantBuffer) { Building5ConstantBuffer->Release(); }
 
 
 	if (CameraResource) { CameraResource->Release(); }
@@ -2516,7 +2722,7 @@ void SceneManagment() {
 			// Resetting Point Light
 			Lights[1].Position = XMFLOAT4(6.0f, 1.0f, 0.0f, 0.0f);
 			Lights[1].Color = XMFLOAT4(255.0f, 0.0f, 255.0f, 1.0f);
-			Lights[1].Radius = XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
+			Lights[1].Radius = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 
 			// Resetting Directional Lighting
 			Lights[2].Direction = XMFLOAT4(1.0f, -1.0f, -1.0f, 0.0f);
@@ -2526,12 +2732,13 @@ void SceneManagment() {
 		// City Theme
 		if (SwapSceneInt == 4) {
 			#pragma region 4
+
 			// Resetting Scene Managment 
 			SwapCameraInt = 0;
 
 			// Setting View Matrixies
-			ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
-			ViewMatrixSub = XMMatrixLookAtLH(Eye, Focus, Up);
+			ViewMatrix = XMMatrixLookAtLH(XMVectorSet(0.0f, 25.0f, 50.0f, 0.0f), Focus, Up);
+			ViewMatrixSub = XMMatrixLookAtLH(XMVectorSet(0.0f, 25.0f, 50.0f, 0.0f), Focus, Up);
 
 			// Initializing the Viewport
 			m_ViewPort[0].Width = static_cast<float>(width);
@@ -2544,17 +2751,17 @@ void SceneManagment() {
 			
 			// Resetting Spot Light
 			Lights[0].Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
-			Lights[0].Color = XMFLOAT4(0.0f, 255.0f, 0.0f, 1.0f);
-			Lights[0].Position = XMFLOAT4(0.0f, 7.0f, 0.0f, 0.0f);
+			Lights[0].Color = XMFLOAT4(0.0f, 255.0f, 255.0f, 1.0f);
+			Lights[0].Position = XMFLOAT4(20.0f, 10.0f, 9.0f, 0.0f);
 			Lights[0].Radius = XMFLOAT4(0.923f, 0.707f, 10.0f, 0.0f);
 
 			// Resetting Point Light
-			Lights[1].Position = XMFLOAT4(6.0f, 1.0f, 0.0f, 0.0f);
-			Lights[1].Color = XMFLOAT4(255.0f, 0.0f, 255.0f, 1.0f);
-			Lights[1].Radius = XMFLOAT4(4.0f, 0.0f, 0.0f, 1.0f);
+			Lights[1].Position = XMFLOAT4(25.0f, 1.0f, 9.5f, 0.0f);
+			Lights[1].Color = XMFLOAT4(255.0f, 155.0f, 155.0f, 1.0f);
+			Lights[1].Radius = XMFLOAT4(7.0f, 0.0f, 0.0f, 1.0f);
 
 			// Resetting Directional Lighting
-			Lights[2].Direction = XMFLOAT4(1.0f, -1.0f, -1.0f, 0.0f);
+			Lights[2].Direction = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
 			Lights[2].Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
 			Resize();
