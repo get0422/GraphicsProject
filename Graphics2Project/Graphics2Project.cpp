@@ -90,6 +90,12 @@ ID3D11Buffer*					SkyBoxIndexBuffer		= nullptr;
 ID3D11Buffer*					SkyBoxConstantBuffer	= nullptr;
 ID3D11ShaderResourceView*		SkyBoxTexture			= nullptr;
 
+
+// Blendinig
+ID3D11BlendState * g_pBlendStateNoBlend = nullptr;
+float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+UINT sampleMask = 0xffffffff;
+
 //-Scene-2--------------------------------------------------------------------------------
 ID3D11RenderTargetView*			RenderTemp				= nullptr;
 IDXGISwapChain*					SwapTemp				= nullptr;
@@ -692,6 +698,22 @@ HRESULT Initialize() {
 
 	m_pDevice->CreateShaderResourceView(CameraTexture2D, &shaderResourceViewDesc, &CameraResource);
 
+	// For Blending
+	D3D11_BLEND_DESC BlendState;
+	ZeroMemory(&BlendState, sizeof(D3D11_BLEND_DESC));
+	BlendState.RenderTarget[0].BlendEnable = TRUE;
+	BlendState.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	BlendState.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	BlendState.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	BlendState.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	BlendState.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	BlendState.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	BlendState.RenderTarget[0].RenderTargetWriteMask = 0x0f;
+	m_pDevice->CreateBlendState(&BlendState, &g_pBlendStateNoBlend);
+
+
+
+
 	SetWall();
 
 	// Setting Indexed Geometry For Scene 1
@@ -1089,6 +1111,8 @@ bool Run() {
 		// Setting Target View
 		m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencil);
 
+		//m_pDeviceContext->OMSetBlendState(g_pBlendStateNoBlend, blendFactor, sampleMask);
+		
 		// Setting Viewport
 		m_pDeviceContext->RSSetViewports(1, &m_ViewPort[0]);
 		// Clearing Back Buffer
